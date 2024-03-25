@@ -1,9 +1,5 @@
--- ---@class OlloumaState
--- ---@field last_action? { model: string, model_action: OlloumaModelActionConfig }
-
 ---@class Ollouma
 ---@field config OlloumaConfig
--- ---@field _state OlloumaState
 local M = {}
 
 ---@param partial_config? OlloumaPartialConfig
@@ -12,7 +8,6 @@ function M.setup(partial_config)
     local Config = require('ollouma.config')
 
     M.config = Config.extend_config(M.config, partial_config)
-    M._state = {}
 
     local subcommands = M.config.user_command_subcommands or {}
     ---@type string[]

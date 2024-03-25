@@ -2,9 +2,9 @@
 -- ---@field model string
 -- ---@field system_prompt string
 
----@class OlloumaPartialChatConfig
----@field model? string
----@field system_prompt? string
+-- ---@class OlloumaPartialChatConfig
+-- ---@field model? string
+-- ---@field system_prompt? string
 
 
 ---@class OlloumaApiConfig
@@ -35,7 +35,7 @@
 ---@field user_command_subcommands table<string, OlloumaSubcommand>
 
 ---@class OlloumaPartialConfig
----@field chat? OlloumaPartialChatConfig
+-- ---@field chat? OlloumaPartialChatConfig
 ---@field api? OlloumaPartialApiConfig
 ---@field model_actions? OlloumaModelActionConfig[]
 ---@field user_command_subcommands? table<string, OlloumaSubcommand>
@@ -75,6 +75,10 @@ function M.default_config()
         user_command_subcommands = {
             select = function()
                 require('ollouma').select()
+            end,
+
+            resume = function()
+                error('todo: resume subcommand')
             end,
 
             -- last = function()

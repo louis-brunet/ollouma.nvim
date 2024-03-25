@@ -161,7 +161,19 @@ function SplitUi:open_split(ui_item, split_kind, opts)
         ui_item.buffer = vim.api.nvim_create_buf(false, true)
 
         if opts.buffer_name then
-            vim.api.nvim_buf_set_name(ui_item.buffer, opts.buffer_name)
+            vim.validate({ buffer_name = { opts.buffer_name, 'string' } })
+
+            ---@type string
+            local buf_name = opts.buffer_name
+            local index = 0
+
+            ---@diagnostic disable-next-line: param-type-mismatch
+            while vim.fn.bufexists(buf_name) ~= 0 do
+                index = index + 1
+                buf_name = opts.buffer_name .. '_' .. index
+            end
+
+            vim.api.nvim_buf_set_name(ui_item.buffer, buf_name)
         end
     end
 
