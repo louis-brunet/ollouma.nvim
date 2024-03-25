@@ -142,7 +142,7 @@ function M.resume_session()
             ---@param item OlloumaGenerateOpenedUi
             ---@return string
             format_item = function(item)
-                return vim.fn.printf('%s - generate (%s)', item.model, os.date(nil, item.created_at))
+                return vim.fn.printf('%s - generate (%s)', item.metadata.model, os.date(nil, item.metadata.created_at))
             end
         },
 
@@ -172,7 +172,7 @@ function M.exit_session()
             ---@param item OlloumaGenerateOpenedUi
             ---@return string
             format_item = function(item)
-                return vim.fn.printf('%s - generate (%s)', item.model, os.date(nil, item.created_at))
+                return vim.fn.printf('%s - generate (%s)', item.metadata.model, os.date(nil, item.metadata.created_at))
             end
         },
 
