@@ -1,3 +1,5 @@
+# ollouma.nvim (WIP)
+
 ## Installation
 
 ### with lazy.nvim
