@@ -27,7 +27,7 @@ function M.setup(partial_config)
                 -- if ui:are_buffers_valid() then
                 --     ui:open_windows()
                 -- else
-                    require('ollouma').select()
+                require('ollouma').select()
                 -- end
             else
                 local subcommand = subcommands[arg]
@@ -42,8 +42,10 @@ function M.setup(partial_config)
         -- :h nvim_create_user_command()
         -- :h command-attributes
         {
-            nargs = '?',
-            complete = function(ArgLead, CmdLine, CursorPos)
+            nargs = '?', -- expect 0 or 1 args
+
+            -- function(ArgLead, CmdLine, CursorPos)
+            complete = function(ArgLead, _, _)
                 return vim.tbl_filter(
                 ---@param name string
                     function(name)
@@ -101,7 +103,7 @@ function M.select_model_action(model)
 
             local ok, err = pcall(item.on_select)
             if not ok then
-                log.warn('Could not call model action: ' .. err)
+                log.error('Could not call model action: ' .. err)
             end
         end
     )
@@ -127,6 +129,65 @@ function M.select()
     Models.select_model(M.config.api.models_url, function(model)
         M.select_model_action(model)
     end)
+end
+
+function M.resume_session()
+    local opened_gen_uis = require('ollouma.generate.ui').list_opened_uis()
+
+    vim.ui.select(
+        opened_gen_uis,
+
+        {
+            prompt = 'Resume session',
+            ---@param item OlloumaGenerateOpenedUi
+            ---@return string
+            format_item = function(item)
+                return vim.fn.printf('%s - generate (%s)', item.model, os.date(nil, item.created_at))
+            end
+        },
+
+        ---@param item OlloumaGenerateOpenedUi
+        ---@param _ integer index
+        function(item, _)
+            local log = require('ollouma.util.log')
+            if not item then
+                log.warn('no session selected, aborting')
+                return
+            end
+
+            item.ui:open_windows()
+        end
+    )
+end
+
+-- TODO: refactor (name formatting; selection?; in generate module ?)
+function M.exit_session()
+    local opened_gen_uis = require('ollouma.generate.ui').list_opened_uis()
+
+    vim.ui.select(
+        opened_gen_uis,
+
+        {
+            prompt = 'Exit session',
+            ---@param item OlloumaGenerateOpenedUi
+            ---@return string
+            format_item = function(item)
+                return vim.fn.printf('%s - generate (%s)', item.model, os.date(nil, item.created_at))
+            end
+        },
+
+        ---@param item OlloumaGenerateOpenedUi
+        ---@param _ integer index
+        function(item, _)
+            local log = require('ollouma.util.log')
+            if not item then
+                log.warn('no session selected, aborting')
+                return
+            end
+
+            item.ui:exit()
+        end
+    )
 end
 
 return M

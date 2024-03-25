@@ -21,8 +21,7 @@ function M.select_model(url, on_select)
     local models = M.list_models(url)
 
     if not models then
-        log.info('no models found, cannot select')
-
+        log.warn('no models found, cannot select')
         return
     end
 

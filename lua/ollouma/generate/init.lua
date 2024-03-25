@@ -8,7 +8,6 @@
 ---@class OlloumaGenerateModule
 local M = {}
 
-
 ---@param opts OlloumaGenerateOptions
 ---@return fun():nil stop_generation function to call when generation should be halted
 function M.start_generation(opts)
@@ -55,13 +54,15 @@ function M.start_generation(opts)
         end
     )
 
-    return function()
-        api_stop_generation()
-    end
+    return api_stop_generation
+    -- return function()
+    --     api_stop_generation()
+    -- end
 end
 
 ---@param model string
 ---@param api_url string|nil
+---@return OlloumaSplitUi split_ui
 function M.start_generate_ui(model, api_url)
     vim.validate({
         model = { model, 'string' },
@@ -70,17 +71,14 @@ function M.start_generate_ui(model, api_url)
 
     ---@type OlloumaConfig
     local config = require('ollouma').config
-    -- TODO: model = model or config.generate.model
+    -- TODO: model = model or config.generate.model ?
 
     ---@type OlloumaGenerateUi
     local gen_ui = require('ollouma.generate.ui')
-    -- local util = require('ollouma.util')
 
-    gen_ui.start_ui(model, api_url or config.api.generate_url, {
-        { label = 'Send',  function_name = 'v:lua._G._ollouma_winbar_send' },
-        { label = 'Empty', function_name = 'v:lua._G._ollouma_winbar_reset' },
-        { label = 'Close', function_name = 'v:lua._G._ollouma_winbar_close' },
-    })
+    local split_ui = gen_ui.start_ui(model, api_url or config.api.generate_url)
+
+    return split_ui
 end
 
 return M

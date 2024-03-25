@@ -78,7 +78,11 @@ function M.default_config()
             end,
 
             resume = function()
-                error('todo: resume subcommand')
+                require('ollouma').resume_session()
+            end,
+
+            exit = function()
+                require('ollouma').exit_session()
             end,
 
             -- last = function()

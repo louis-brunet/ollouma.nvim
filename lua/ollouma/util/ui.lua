@@ -1,26 +1,26 @@
--- ---@enum OlloumaVerticalPosition
--- local OlloumaVerticalPosition = {
---     TOP = 'top',
---     BOTTOM = 'bottom',
--- }
-
 ---@class OlloumaSplitUiBufferCommand
 ---@field rhs string|fun():nil right-hand side of a user command mapping, vim command or lua function
 ---@field opts table
 
 ---@enum OlloumaSplitKind
 local OlloumaSplitKind = {
-    -- VERTICAL = 'vertical',
-    -- HORIZONTAL = 'horizontal',
     TOP = 'top',
     BOTTOM = 'bottom',
     LEFT = 'left',
     RIGHT = 'right',
 }
 
+---@class OlloumaSplitUiWinbarItem
+---@field label string
+-- ---@field fn fun(): nil
+---@field function_name string
+---@field argument integer|nil
+
 ---@class OlloumaSplitUiConfig
 ---@field prompt_split OlloumaSplitKind
 ---@field output_split OlloumaSplitKind
+---@field model_name string
+---@field on_exit nil|fun(self: OlloumaSplitUi):nil
 
 ---@class OlloumaSplitUiItem
 ---@field buffer integer|nil
@@ -37,9 +37,17 @@ SplitUi.__index = SplitUi
 ---@param config OlloumaSplitUiConfig
 ---@return OlloumaSplitUi
 function SplitUi:new(config)
+    vim.validate({
+        config = { config, 'table' },
+        prompt_split = { config.prompt_split, 'string' },
+        output_split = { config.output_split, 'string' },
+        model_name = { config.model_name, 'string' },
+        on_exit = { config.on_exit, { 'function', 'nil' } },
+    })
+
     ---@type OlloumaSplitUi
     local split_ui = {
-        config = config or {},
+        config = config,
         prompt = {
             buffer = nil,
             window = nil,
@@ -53,27 +61,70 @@ function SplitUi:new(config)
     return setmetatable(split_ui, self)
 end
 
----@param model_name string
----@param commands table<string, OlloumaSplitUiBufferCommand>|nil
-function SplitUi:open_prompt(model_name, commands)
-    self.prompt = self.prompt or {}
-
-    self:open_split(self.prompt, self.config.prompt_split, {
-        set_current_window = true,
-        commands = commands or {},
-        buffer_name = 'PROMPT [' .. model_name .. ']',
-    })
+function SplitUi:exit()
+    if self.config.on_exit then
+        vim.validate({ on_exit = { self.config.on_exit, 'function' } })
+        self.config.on_exit(self)
+    end
+    self:close_windows()
+    self:destroy_buffers()
 end
 
----@param model_name string
+function SplitUi:close_windows()
+    if self.prompt.window and vim.api.nvim_win_is_valid(self.prompt.window) then
+        vim.api.nvim_win_close(self.prompt.window, false)
+    end
+    if self.output.window and vim.api.nvim_win_is_valid(self.output.window) then
+        vim.api.nvim_win_close(self.output.window, false)
+    end
+
+    self.prompt.window = nil
+    self.output.window = nil
+end
+
+function SplitUi:open_windows()
+    if not self.prompt.window or not vim.api.nvim_win_is_valid(self.prompt.window) then
+        self:open_prompt()
+    end
+
+    if not self.output.window or not vim.api.nvim_win_is_valid(self.output.window) then
+        self:open_output()
+    end
+end
+
 ---@param commands table<string, OlloumaSplitUiBufferCommand>|nil
-function SplitUi:open_output(model_name, commands)
+function SplitUi:open_prompt(commands)
+    self.prompt = self.prompt or {}
+
+    ---@type OlloumaSplitUiWinbarItem[]
+    local prompt_winbar_items = {
+        -- { label = 'Send',  function_name = "v:lua.vim.g._ollouma_winbar_send" },
+        -- { label = 'Test',  function_name = "v:lua.require'ollouma.generate.ui'.test", argument = 123 },
+        -- -- { label = 'Test', fn = function() vim.notify('456') end },
+        -- { label = 'Empty', function_name = "v:lua.vim.g._ollouma_winbar_empty" },
+        -- { label = 'Close', function_name = "v:lua.vim.g._ollouma_winbar_close" },
+    }
+
+    self:open_split(
+        self.prompt,
+        self.config.prompt_split,
+        ---@type OlloumaSplitUiOpenOptions
+        {
+            set_current_window = true,
+            commands = commands or {},
+            buffer_name = 'PROMPT [' .. self.config.model_name .. ']',
+            winbar_items = prompt_winbar_items,
+        })
+end
+
+---@param commands table<string, OlloumaSplitUiBufferCommand>|nil
+function SplitUi:open_output(commands)
     self.output = self.output or {}
 
     self:open_split(self.output, self.config.output_split, {
         set_current_window = false,
         commands = commands or {},
-        buffer_name = 'OUTPUT [' .. model_name .. ']',
+        buffer_name = 'OUTPUT [' .. self.config.model_name .. ']',
     })
 end
 
@@ -147,6 +198,7 @@ end
 ---@field set_current_window boolean|nil
 ---@field commands table<string, OlloumaSplitUiBufferCommand>|nil
 ---@field buffer_name string|nil
+---@field winbar_items OlloumaSplitUiWinbarItem[]|nil
 
 ---@private
 ---@param ui_item OlloumaSplitUiItem
@@ -175,6 +227,14 @@ function SplitUi:open_split(ui_item, split_kind, opts)
 
             vim.api.nvim_buf_set_name(ui_item.buffer, buf_name)
         end
+
+        -- vim.api.nvim_create_autocmd('WinClosed', {
+        --     group = vim.api.nvim_create_augroup('_OlloumaSplitUiWinClosedGroup_' .. ui_item.buffer, { clear = true }),
+        --     buffer = ui_item.buffer,
+        --     callback = function()
+        --         ui_item.window = nil
+        --     end
+        -- })
     end
 
     if ui_item.window == nil or not vim.api.nvim_win_is_valid(ui_item.window) then
@@ -192,6 +252,20 @@ function SplitUi:open_split(ui_item, split_kind, opts)
 
         ui_item.window = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(ui_item.window, ui_item.buffer)
+
+        if opts.winbar_items and #opts.winbar_items ~= 0 then
+            local winbar_str = ''
+            for _, winbar_item in ipairs(opts.winbar_items) do
+                vim.validate({
+                    label = { winbar_item.label, 'string' },
+                    function_name = { winbar_item.function_name, 'string' },
+                    argument = { winbar_item.argument, { 'number', 'nil' } },
+                })
+                winbar_str = winbar_str .. '%' ..
+                    (winbar_item.argument or '') .. '@' .. winbar_item.function_name .. '@' .. winbar_item.label .. '%X '
+            end
+            vim.api.nvim_win_set_option(ui_item.window, 'winbar', winbar_str)
+        end
     end
 
     -- for some reason this needs to be after the window initialization or
@@ -210,6 +284,19 @@ function SplitUi:open_split(ui_item, split_kind, opts)
         current_window = ui_item.window
     end
     vim.api.nvim_set_current_win(current_window)
+end
+
+---@private
+function SplitUi:destroy_buffers()
+    if self.prompt.buffer then
+        vim.api.nvim_buf_delete(self.prompt.buffer, {})
+    end
+    self.prompt.buffer = nil
+
+    if self.output.buffer then
+        vim.api.nvim_buf_delete(self.output.buffer, {})
+    end
+    self.output.buffer = nil
 end
 
 return { SplitUi = SplitUi, OlloumaSplitKind = OlloumaSplitKind }
