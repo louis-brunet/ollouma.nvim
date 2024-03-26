@@ -73,8 +73,8 @@ function M.default_config()
         end,
 
         user_command_subcommands = {
-            select = function()
-                require('ollouma').select()
+            start = function()
+                require('ollouma').start()
             end,
 
             resume = function()
