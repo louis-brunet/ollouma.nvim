@@ -91,6 +91,10 @@ function M.start_ui(model, api_url)
                 split_ui:open_output()
                 local prompt = split_ui:get_prompt_lines()
 
+                split_ui:output_write_lines({ '<!------ Prompt ------>' })
+                split_ui:output_write_lines(prompt)
+                split_ui:output_write_lines({ '<!------ Output ------>', '' })
+
                 ---@type OlloumaGenerateOptions
                 local generate_opts = {
                     model = model,
@@ -102,6 +106,7 @@ function M.start_ui(model, api_url)
                     on_response_end = function()
                         vim.api.nvim_buf_del_user_command(split_ui.prompt.buffer, 'OlloumaGenStop')
                         vim.api.nvim_buf_del_user_command(split_ui.output.buffer, 'OlloumaGenStop')
+                        split_ui:output_write_lines({ '' })
                     end
                 }
 

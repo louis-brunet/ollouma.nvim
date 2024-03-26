@@ -2,6 +2,7 @@
 ---@field timeout_ms? integer
 ---@field poll_interval_ms? integer
 
+---@class OlloumaModelsModule
 local M = {}
 
 ---@param url string

@@ -134,6 +134,8 @@ function SplitUi:ouput_write(str)
 
     util.buf_append_string(self.output.buffer, str)
 
+    -- TODO: conditionally disable auto scrolling
+
     if not self.output.window or not vim.api.nvim_win_is_valid(self.output.window) then
         return
     end
@@ -157,12 +159,21 @@ function SplitUi:ouput_write(str)
     end
 end
 
+function SplitUi:output_write_lines(lines)
+    local util = require('ollouma.util')
+
+    util.buf_append_lines(self.output.buffer, lines)
+
+    -- TODO: conditionally disable auto scrolling
+
+    local prompt_line_idx = #vim.api.nvim_buf_get_lines(self.output.buffer, 0, -1, false) - #lines + 1
+    vim.api.nvim_win_set_cursor(self.output.window, { prompt_line_idx, 0 })
+end
+
 function SplitUi:get_prompt_lines()
     return vim.api.nvim_buf_get_lines(self.prompt.buffer, 0, -1, false)
 end
 
--- TODO: ---@private ?
---
 ---@param command_name string
 ---@param cmd OlloumaSplitUiBufferCommand
 ---@param ui_items OlloumaSplitUiItem[]

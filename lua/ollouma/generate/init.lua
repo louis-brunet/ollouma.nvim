@@ -3,7 +3,7 @@
 ---@field prompt string|nil
 ---@field api_url string
 ---@field on_response fun(partial_response: string): nil
----@field on_response_end fun(): nil
+---@field on_response_end fun(): nil only called when the response is finished, not when it is prematurely aborted by the user
 
 ---@class OlloumaGenerateModule
 local M = {}
@@ -44,7 +44,7 @@ function M.start_generation(opts)
                     vim.schedule(opts.on_response_end)
                 end
 
-                -- TODO: any cleanup/final actions ?
+                -- TODO: any cleanup/final actions ? (note: should also be done in wrapper func around api_stop_generation)
                 return
             end
 
