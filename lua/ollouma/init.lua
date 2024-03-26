@@ -32,7 +32,7 @@ function M.setup(partial_config)
             else
                 local subcommand = subcommands[arg]
                 if not subcommand then
-                    log.warn('invalid subcommand: "' .. arg .. '"')
+                    log.error('invalid subcommand: "' .. arg .. '"')
                     return
                 end
                 subcommand()

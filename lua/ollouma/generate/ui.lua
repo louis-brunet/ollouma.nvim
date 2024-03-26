@@ -35,6 +35,7 @@ local M = {
 function M.list_opened_uis()
     ---@type OlloumaGenerateOpenedUi[]
     local opened_list = {}
+
     for split_ui, metadata in pairs(M.opened_uis) do
         table.insert(
             opened_list,
@@ -44,8 +45,8 @@ function M.list_opened_uis()
             }
         )
     end
+
     return opened_list
-    -- return vim.deepcopy(M.opened_uis)
 end
 
 ---@param model string
@@ -75,15 +76,6 @@ function M.start_ui(model, api_url)
         model = model,
         created_at = os.time()
     }
-    -- table.insert(
-    --     M.opened_uis,
-    --     ---@type OlloumaGenerateOpenedUi
-    --     {
-    --         ui = split_ui,
-    --         model = model,
-    --         created_at = os.time()
-    --     }
-    -- )
 
     local prompt_commands = {
         OlloumaSend = {
@@ -106,7 +98,7 @@ function M.start_ui(model, api_url)
                     on_response_end = function()
                         vim.api.nvim_buf_del_user_command(split_ui.prompt.buffer, 'OlloumaGenStop')
                         vim.api.nvim_buf_del_user_command(split_ui.output.buffer, 'OlloumaGenStop')
-                        split_ui:output_write_lines({ '' })
+                        split_ui:output_write_lines({ '<!-------------------->', '' })
                     end
                 }
 
@@ -127,7 +119,16 @@ function M.start_ui(model, api_url)
         },
     }
 
-    split_ui:open_prompt(prompt_commands)
+    ---@type OlloumaSplitUiBufferKeymap[]
+    local prompt_keymaps = {
+        {
+            lhs = '<leader>os',
+            rhs = ':OlloumaSend<CR>', -- TODO: this rhs should be requireable in lua
+            opts = {},
+        },
+    }
+
+    split_ui:open_prompt(prompt_commands, prompt_keymaps)
 
     return split_ui
 end

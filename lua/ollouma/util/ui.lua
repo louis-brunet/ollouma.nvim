@@ -2,6 +2,11 @@
 ---@field rhs string|fun():nil right-hand side of a user command mapping, vim command or lua function
 ---@field opts table
 
+---@class OlloumaSplitUiBufferKeymap
+---@field lhs string
+---@field rhs string|fun():nil right-hand side of a keymap, vim command or lua function
+---@field opts table
+
 ---@enum OlloumaSplitKind
 local OlloumaSplitKind = {
     TOP = 'top',
@@ -93,7 +98,8 @@ function SplitUi:open_windows()
 end
 
 ---@param commands table<string, OlloumaSplitUiBufferCommand>|nil
-function SplitUi:open_prompt(commands)
+---@param keymaps OlloumaSplitUiBufferKeymap[]|nil
+function SplitUi:open_prompt(commands, keymaps)
     self.prompt = self.prompt or {}
 
     ---@type OlloumaSplitUiWinbarItem[]
@@ -114,7 +120,9 @@ function SplitUi:open_prompt(commands)
             commands = commands or {},
             buffer_name = 'PROMPT [' .. self.config.model_name .. ']',
             winbar_items = prompt_winbar_items,
-        })
+            keymaps = keymaps,
+        }
+    )
 end
 
 ---@param commands table<string, OlloumaSplitUiBufferCommand>|nil
@@ -166,7 +174,7 @@ function SplitUi:output_write_lines(lines)
 
     -- TODO: conditionally disable auto scrolling
 
-    local prompt_line_idx = #vim.api.nvim_buf_get_lines(self.output.buffer, 0, -1, false) - #lines + 1
+    local prompt_line_idx = #vim.api.nvim_buf_get_lines(self.output.buffer, 0, -1, false)
     vim.api.nvim_win_set_cursor(self.output.window, { prompt_line_idx, 0 })
 end
 
@@ -210,6 +218,7 @@ end
 ---@field commands table<string, OlloumaSplitUiBufferCommand>|nil
 ---@field buffer_name string|nil
 ---@field winbar_items OlloumaSplitUiWinbarItem[]|nil
+---@field keymaps OlloumaSplitUiBufferKeymap[]|nil
 
 ---@private
 ---@param ui_item OlloumaSplitUiItem
@@ -237,6 +246,16 @@ function SplitUi:open_split(ui_item, split_kind, opts)
             end
 
             vim.api.nvim_buf_set_name(ui_item.buffer, buf_name)
+        end
+
+        if opts.keymaps then
+            vim.validate({ keymaps = { opts.keymaps, 'table' } })
+
+            for _, keymap in ipairs(opts.keymaps) do
+                local keymap_opts = vim.tbl_deep_extend('force', keymap.opts or {}, { buffer = ui_item.buffer })
+                vim.keymap.set('n', keymap.lhs, keymap.rhs, keymap_opts)
+                log.debug('set keymap "' .. keymap.lhs .. '" with opts: ' .. vim.inspect(keymap_opts))
+            end
         end
 
         -- vim.api.nvim_create_autocmd('WinClosed', {
