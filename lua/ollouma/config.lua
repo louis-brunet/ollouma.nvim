@@ -23,22 +23,27 @@
 ---@field on_select fun(current_model: string): nil
 
 
--- ---@class OlloumaSubcommandConfig
--- ---@field run fun(): nil
----@alias OlloumaSubcommand fun(): nil
+-- ---@class OlloumaSubcommandOptions
+-- ---@field mode 'n'|'v'
+
+--- cmd_opts param is the parameter to the user command function in
+--- :h nvim_create_user_command()
+---@alias OlloumaSubcommand fun(cmd_opts: table): nil
 
 
 ---@class OlloumaConfig
 -- ---@field chat OlloumaChatConfig
+---@field model string|nil
 ---@field api OlloumaApiConfig
 ---@field model_actions fun(model: string): OlloumaModelActionConfig[]
 ---@field user_command_subcommands table<string, OlloumaSubcommand>
 
 ---@class OlloumaPartialConfig
--- ---@field chat? OlloumaPartialChatConfig
----@field api? OlloumaPartialApiConfig
----@field model_actions? OlloumaModelActionConfig[]
----@field user_command_subcommands? table<string, OlloumaSubcommand>
+---@field model string|nil
+-- ---@field chat OlloumaPartialChatConfig|nil
+---@field api OlloumaPartialApiConfig|nil
+---@field model_actions OlloumaModelActionConfig[]|nil
+---@field user_command_subcommands table<string, OlloumaSubcommand>|nil
 
 
 ---@class OlloumaConfigModule
@@ -49,6 +54,8 @@ local M = {}
 function M.default_config()
     ---@type OlloumaConfig
     return {
+        model = nil,
+
         -- chat = {
         --     model = 'mistral',
         --     system_prompt = '', -- TODO: chat + system prompt
@@ -69,12 +76,27 @@ function M.default_config()
                         require('ollouma.generate').start_generate_ui(model)
                     end
                 },
+                -- {
+                --     name = 'Review',
+                --     on_select = function()
+                --         require('ollouma.generate').start_review_ui(model)
+                --     end
+                -- },
             }
         end,
 
         user_command_subcommands = {
             start = function()
                 require('ollouma').start()
+            end,
+
+            select_action = function()
+                local ollouma = require('ollouma')
+                if ollouma.config.model then
+                    ollouma.select_model_action(ollouma.config.model)
+                else
+                    ollouma.start()
+                end
             end,
 
             resume = function()

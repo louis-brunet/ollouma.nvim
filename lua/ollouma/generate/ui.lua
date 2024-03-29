@@ -119,6 +119,8 @@ function M.start_ui(model, api_url)
         },
     }
 
+    --- TODO: configurable buffer keymaps
+
     ---@type OlloumaSplitUiBufferKeymap[]
     local prompt_keymaps = {
         {

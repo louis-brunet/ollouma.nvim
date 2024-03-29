@@ -16,26 +16,27 @@ function M.setup(partial_config)
     vim.api.nvim_create_user_command('Ollouma',
         function(cmd_opts)
             local arg = cmd_opts.fargs[1]
+
             if not arg then
+                -- :Ollouma
+
                 if type(subcommands.ollouma) == 'function' then
-                    subcommands.ollouma()
+                    subcommands.ollouma(cmd_opts)
                     return
                 end
 
-                -- TODO: not only generate ui ?
-                -- local ui = require('ollouma.generate.ui')
-                -- if ui:are_buffers_valid() then
-                --     ui:open_windows()
-                -- else
+                -- TODO: get visual selection here?
                 require('ollouma').start()
-                -- end
             else
+                -- :Ollouma <arg>
+
                 local subcommand = subcommands[arg]
                 if not subcommand then
                     log.error('invalid subcommand: "' .. arg .. '"')
                     return
                 end
-                subcommand()
+
+                subcommand(cmd_opts)
             end
         end,
 
@@ -43,6 +44,8 @@ function M.setup(partial_config)
         -- :h command-attributes
         {
             nargs = '?', -- expect 0 or 1 args
+
+            range = true,
 
             -- function(ArgLead, CmdLine, CursorPos)
             complete = function(ArgLead, _, _)

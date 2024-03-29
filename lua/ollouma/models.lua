@@ -21,7 +21,7 @@ function M.select_model(url, on_select)
     local log = require('ollouma.util.log')
     local models = M.list_models(url)
 
-    if not models then
+    if not models or #models == 0 then
         log.warn('no models found, cannot select')
         return
     end

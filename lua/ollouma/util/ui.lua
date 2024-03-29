@@ -67,23 +67,24 @@ function SplitUi:new(config)
 end
 
 function SplitUi:exit()
+    self:close_windows()
+    self:destroy_buffers()
     if self.config.on_exit then
         vim.validate({ on_exit = { self.config.on_exit, 'function' } })
         self.config.on_exit(self)
     end
-    self:close_windows()
-    self:destroy_buffers()
 end
 
 function SplitUi:close_windows()
     if self.prompt.window and vim.api.nvim_win_is_valid(self.prompt.window) then
         vim.api.nvim_win_close(self.prompt.window, false)
     end
+    self.prompt.window = nil
+
     if self.output.window and vim.api.nvim_win_is_valid(self.output.window) then
         vim.api.nvim_win_close(self.output.window, false)
     end
 
-    self.prompt.window = nil
     self.output.window = nil
 end
 

@@ -36,29 +36,11 @@ local function validate_response_dto(response_body)
     })
     ---@type OlloumaResponseChunkDto
     return response_body
-    -- {
-    --     model = response_body.model,
-    --     created_at = response_body.created_at,
-    --     done = response_body.done,
-    -- }
 end
 
 
 ---@class OlloumaApiClient
 local M = {}
-
--- ---@param reason string
--- local function invalid(reason)
---     ---@type JsonValidatorInvalidResult
---     return { valid = false, error = reason }
--- end
-
-
----@return boolean
-function M.healthcheck(url)
-    local child = system.run({ 'curl', url })
-    return child:wait().code == 0
-end
 
 ---@param url string
 ---@param json_body JsonData
@@ -108,15 +90,19 @@ end
 
 ---@param url string
 function M.find_all_models(url)
+    local log = require('ollouma.util.log')
     local models_result = M.get_sync(url)
 
     vim.validate({ models_result = { models_result, 'string' } })
 
+    ---@type string[]
+    local models = {}
+
     if not models_result then
-        error("no models result")
+        return models
     end
     if #models_result == 0 then
-        error("models result is an empty string")
+        return models
     end
 
     local decoded_json = vim.json.decode(models_result)
@@ -125,8 +111,6 @@ function M.find_all_models(url)
 
     ---@cast decoded_json { models: {model:string}[]}
 
-    ---@type string[]
-    local models = {}
     for i, model in ipairs(decoded_json.models) do
         models[i] = model.model
     end
@@ -136,13 +120,15 @@ end
 
 ---@return string?
 function M.get_sync(url)
-    -- local stdout_buf = ""
-    local child = M.get_stream(url, nil, function(completed)
-        if completed.code ~= 0 then
-            error('command execution failed: ' .. completed.stderr)
-        end
-    end)
+    local child = M.get_stream(url)
     local completed = child:wait()
+
+    if completed.code ~= 0 then
+        local error_msg = 'command exited with status code ' .. completed.code .. ':\n' .. completed.stderr
+        require('ollouma.util.log').error(error_msg)
+        -- error(error_msg)
+    end
+
     return completed.stdout
 end
 
@@ -151,11 +137,18 @@ end
 ---@param on_stdout false|nil|fun(err?: string, data?: string): nil
 ---@param on_exit? fun(out: vim.SystemCompleted): nil
 function M.get_stream(url, on_stdout, on_exit)
-    return system.run(
+    local ok, res = pcall(
+        system.run,
         { 'curl', '--no-buffer', '-X', 'GET', url },
         { text = true, stdout = on_stdout },
         on_exit
     )
+
+    if not ok then
+        error('could not run cURL command: ' .. res)
+    end
+
+    return res
 end
 
 ---@private
@@ -164,7 +157,8 @@ end
 ---@param on_stdout false|nil|fun(err?: string, data?: string): nil
 ---@param on_exit fun(out: vim.SystemCompleted): nil
 function M.post_stream(url, json_body, on_stdout, on_exit)
-    return system.run(
+    local ok, res = pcall(
+        system.run,
         {
             'curl',
             '--no-buffer',
@@ -177,6 +171,12 @@ function M.post_stream(url, json_body, on_stdout, on_exit)
         { text = true, stdout = on_stdout },
         on_exit
     )
+
+    if not ok then
+        error('could not run cURL command: ' .. res)
+    end
+
+    return res
 end
 
 return M
