@@ -5,6 +5,10 @@
 ---@field on_response fun(partial_response: string): nil
 ---@field on_response_end fun(): nil only called when the response is finished, not when it is prematurely aborted by the user
 
+---@class OlloumaGenerateUiOptions
+---@field api_url string|nil
+---@field initial_prompt string|nil
+
 ---@class OlloumaGenerateModule
 local M = {}
 
@@ -61,24 +65,22 @@ function M.start_generation(opts)
 end
 
 ---@param model string
----@param api_url string|nil
+---@param opts OlloumaGenerateUiOptions|nil
 ---@return OlloumaSplitUi split_ui
-function M.start_generate_ui(model, api_url)
-    vim.validate({
-        model = { model, 'string' },
-        api_url = { api_url, { 'string', 'nil' } },
-    })
-
-    ---@type OlloumaConfig
+function M.start_generate_ui(model, opts)
     local config = require('ollouma').config
-    -- TODO: model = model or config.generate.model ?
-
-    ---@type OlloumaGenerateUi
     local gen_ui = require('ollouma.generate.ui')
 
-    local split_ui = gen_ui.start_ui(model, api_url or config.api.generate_url)
+    opts = opts or {}
+    local api_url = opts.api_url or config.api.generate_url
 
-    return split_ui
+    vim.validate({
+        model = { model, 'string' },
+        api_url = { api_url, { 'string' } },
+        initial_prompt = { opts.initial_prompt, { 'string', 'nil' } },
+    })
+
+    return gen_ui.start_ui(model, api_url, opts.initial_prompt)
 end
 
 return M

@@ -1,3 +1,7 @@
+local function format_msg(...)
+    return '[ollouma]: ' .. vim.fn.join({ ... }, ' ')
+end
+
 local M = {
     --- :h vim.log.levels
     -- TODO: value from config
@@ -9,11 +13,11 @@ local function log(vim_level, ...)
         return
     end
 
-    vim.notify('[ollouma]: ' .. vim.fn.join({ ... }, ' '), vim_level)
+    vim.notify(format_msg(...), vim_level)
 end
 
 function M.error(...)
-    log(vim.log.levels.ERROR, '(ERROR)', ... )
+    log(vim.log.levels.ERROR, '(ERROR)', ...)
 end
 
 function M.warn(...)

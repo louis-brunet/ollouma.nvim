@@ -18,9 +18,12 @@
 ---@field models_url? string
 
 
----@class OlloumaModelActionConfig
+---@class OlloumaModelActionOptions
+---@field visual_selection string|nil
+
+---@class OlloumaModelAction
 ---@field name string
----@field on_select fun(current_model: string): nil
+---@field on_select fun(opts: OlloumaModelActionOptions|nil): nil
 
 
 -- ---@class OlloumaSubcommandOptions
@@ -35,14 +38,14 @@
 -- ---@field chat OlloumaChatConfig
 ---@field model string|nil
 ---@field api OlloumaApiConfig
----@field model_actions fun(model: string): OlloumaModelActionConfig[]
+---@field model_actions fun(model: string): OlloumaModelAction[]
 ---@field user_command_subcommands table<string, OlloumaSubcommand>
 
 ---@class OlloumaPartialConfig
 ---@field model string|nil
 -- ---@field chat OlloumaPartialChatConfig|nil
 ---@field api OlloumaPartialApiConfig|nil
----@field model_actions OlloumaModelActionConfig[]|nil
+---@field model_actions nil|fun(model: string): OlloumaModelAction[]
 ---@field user_command_subcommands table<string, OlloumaSubcommand>|nil
 
 
@@ -68,12 +71,16 @@ function M.default_config()
         },
 
         model_actions = function(model)
-            ---@type OlloumaModelActionConfig[]
+            ---@type OlloumaModelAction[]
             return {
                 {
                     name = 'Generate',
-                    on_select = function()
-                        require('ollouma.generate').start_generate_ui(model)
+                    on_select = function(opts)
+                        opts = opts or {}
+                        require('ollouma.generate').start_generate_ui(
+                            model,
+                            { initial_prompt = opts.visual_selection }
+                        )
                     end
                 },
                 -- {
@@ -86,16 +93,27 @@ function M.default_config()
         end,
 
         user_command_subcommands = {
-            start = function()
-                require('ollouma').start()
-            end,
-
-            select_action = function()
+            select_action = function(cmd_opts)
                 local ollouma = require('ollouma')
+
+                local visual_selection = nil
+                if cmd_opts.range == 2 then
+                    -- NOTE: the actual position expressions seem to not be
+                    -- exposed in cmd_opts (line1 and line2 don't give the
+                    -- column numbers)
+                    -- require('ollouma.util.log').warn('TODO use get_range_text; cmd_opts=', vim.inspect(cmd_opts))
+                    visual_selection = require('ollouma.util').get_last_visual_selection()
+                end
+
+                ---@type OlloumaModelActionOptions
+                local model_action_opts = {
+                    visual_selection = visual_selection
+                }
+
                 if ollouma.config.model then
-                    ollouma.select_model_action(ollouma.config.model)
+                    ollouma.select_model_action(ollouma.config.model, model_action_opts)
                 else
-                    ollouma.start()
+                    ollouma.start(model_action_opts)
                 end
             end,
 

@@ -100,12 +100,13 @@ end
 
 ---@param commands table<string, OlloumaSplitUiBufferCommand>|nil
 ---@param keymaps OlloumaSplitUiBufferKeymap[]|nil
-function SplitUi:open_prompt(commands, keymaps)
+---@param prompt_text string|nil
+function SplitUi:open_prompt(commands, keymaps, prompt_text)
     self.prompt = self.prompt or {}
 
     ---@type OlloumaSplitUiWinbarItem[]
     local prompt_winbar_items = {
-        -- { label = 'Send',  function_name = "v:lua.vim.g._ollouma_winbar_send" },
+        --TODO: ? { label = 'Send',  function_name = "v:lua.vim.g._ollouma_winbar_send" },
         -- { label = 'Test',  function_name = "v:lua.require'ollouma.generate.ui'.test", argument = 123 },
         -- -- { label = 'Test', fn = function() vim.notify('456') end },
         -- { label = 'Empty', function_name = "v:lua.vim.g._ollouma_winbar_empty" },
@@ -122,6 +123,7 @@ function SplitUi:open_prompt(commands, keymaps)
             buffer_name = 'PROMPT [' .. self.config.model_name .. ']',
             winbar_items = prompt_winbar_items,
             keymaps = keymaps,
+            new_text = prompt_text,
         }
     )
 end
@@ -220,6 +222,7 @@ end
 ---@field buffer_name string|nil
 ---@field winbar_items OlloumaSplitUiWinbarItem[]|nil
 ---@field keymaps OlloumaSplitUiBufferKeymap[]|nil
+---@field new_text string|nil
 
 ---@private
 ---@param ui_item OlloumaSplitUiItem
@@ -302,6 +305,10 @@ function SplitUi:open_split(ui_item, split_kind, opts)
     -- for some reason this needs to be after the window initialization or
     -- ftplugin configs don't work
     vim.api.nvim_buf_set_option(ui_item.buffer, 'ft', 'markdown')
+
+    if opts.new_text and #opts.new_text ~= 0 then
+        require('ollouma.util').buf_append_string(ui_item.buffer, opts.new_text)
+    end
 
     if opts.commands then
         for command_name, cmd in pairs(opts.commands) do

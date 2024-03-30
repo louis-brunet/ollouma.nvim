@@ -51,12 +51,13 @@ end
 
 ---@param model string
 ---@param api_url string
--- ---@param winbar_items OlloumaSplitUiWinbarItem[]
+---@param initial_prompt string|nil
 ---@return OlloumaSplitUi split_ui
-function M.start_ui(model, api_url)
+function M.start_ui(model, api_url, initial_prompt)
     vim.validate({
         model = { model, 'string' },
         api_url = { api_url, 'string' },
+        initial_prompt = { initial_prompt, { 'string', 'nil' } },
         -- winbar_items = { winbar_items, 'table' },
     })
     local generate = require('ollouma.generate')
@@ -130,7 +131,7 @@ function M.start_ui(model, api_url)
         },
     }
 
-    split_ui:open_prompt(prompt_commands, prompt_keymaps)
+    split_ui:open_prompt(prompt_commands, prompt_keymaps, initial_prompt)
 
     return split_ui
 end

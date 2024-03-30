@@ -73,8 +73,12 @@ end
 -- end
 
 ---@param model string
-function M.select_model_action(model)
-    vim.validate({ model = { model, 'string' } })
+---@param model_action_opts OlloumaModelActionOptions |nil
+function M.select_model_action(model, model_action_opts)
+    vim.validate({
+        model = { model, 'string' },
+        model_action_opts = { model_action_opts, { 'table', 'nil' } },
+    })
 
     local log = require('ollouma.util.log')
     local model_actions = M.config.model_actions(model)
@@ -92,7 +96,7 @@ function M.select_model_action(model)
             format_item = function(item) return item.name end
         },
 
-        ---@param item OlloumaModelActionConfig
+        ---@param item OlloumaModelAction
         ---@param _ integer index
         function(item, _)
             if not item then
@@ -104,7 +108,7 @@ function M.select_model_action(model)
 
             -- M._state.last_action = { model = model, model_action = item }
 
-            local ok, err = pcall(item.on_select)
+            local ok, err = pcall(item.on_select, model_action_opts)
             if not ok then
                 log.error('Could not call model action: ' .. err)
             end
@@ -112,25 +116,12 @@ function M.select_model_action(model)
     )
 end
 
--- function M.last_model_action()
---     local log = require('ollouma.util.log')
---     local action = M._state.last_action
---
---     if action then
---         local ok, err = pcall(action.model_action.on_select, action.model)
---         if not ok then
---             log.warn('Could not call model action: ' .. err)
---         end
---     else
---         log.warn('Last model action not found')
---     end
--- end
-
-function M.start()
+---@param model_action_opts OlloumaModelActionOptions|nil
+function M.start(model_action_opts)
     local Models = require('ollouma.models')
 
     Models.select_model(M.config.api.models_url, function(model)
-        M.select_model_action(model)
+        M.select_model_action(model, model_action_opts)
     end)
 end
 

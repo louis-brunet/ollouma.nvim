@@ -1,3 +1,15 @@
+--- thanks to @justinmk https://github.com/neovim/neovim/pull/13896#issuecomment-1621702052
+local function region_to_text(region)
+    local text = ''
+    local maxcol = vim.v.maxcol
+    for line, cols in vim.spairs(region) do
+        local endcol = cols[2] == maxcol and -1 or cols[2]
+        local chunk = vim.api.nvim_buf_get_text(0, line, cols[1], line, endcol, {})[1]
+        text = ('%s%s\n'):format(text, chunk)
+    end
+    return text
+end
+
 local M = {}
 
 function M.is_function(value)
@@ -19,6 +31,20 @@ function M.buf_append_string(buffer, new_text)
     local new_lines = vim.split(concatenated, '\n', { plain = true })
 
     vim.api.nvim_buf_set_lines(buffer, -2, -1, false, new_lines)
+end
+
+function M.get_last_visual_selection()
+    return M.get_range_text("'<", "'>")
+end
+
+function M.get_range_text(expr_start, expr_end)
+    local pos_start = vim.fn.getpos(expr_start)
+    local pos_end = vim.fn.getpos(expr_end)
+    local region_start = { pos_start[2] - 1, pos_start[3] - 1 }
+    local region_end = { pos_end[2] - 1, pos_end[3] - 1 }
+    local region = vim.region(0, region_start, region_end, vim.fn.visualmode(), true)
+
+    return region_to_text(region)
 end
 
 return M
