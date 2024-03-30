@@ -26,9 +26,6 @@
 ---@field on_select fun(opts: OlloumaModelActionOptions|nil): nil
 
 
--- ---@class OlloumaSubcommandOptions
--- ---@field mode 'n'|'v'
-
 --- cmd_opts param is the parameter to the user command function in
 --- :h nvim_create_user_command()
 ---@alias OlloumaSubcommand fun(cmd_opts: table): nil
@@ -40,6 +37,7 @@
 ---@field api OlloumaApiConfig
 ---@field model_actions fun(model: string): OlloumaModelAction[]
 ---@field user_command_subcommands table<string, OlloumaSubcommand>
+---@field log_level integer :h vim.log.levels
 
 ---@class OlloumaPartialConfig
 ---@field model string|nil
@@ -47,6 +45,7 @@
 ---@field api OlloumaPartialApiConfig|nil
 ---@field model_actions nil|fun(model: string): OlloumaModelAction[]
 ---@field user_command_subcommands table<string, OlloumaSubcommand>|nil
+---@field log_level integer|nil :h vim.log.levels
 
 
 ---@class OlloumaConfigModule
@@ -57,6 +56,8 @@ local M = {}
 function M.default_config()
     ---@type OlloumaConfig
     return {
+        log_level = vim.log.levels.INFO,
+
         model = nil,
 
         -- chat = {

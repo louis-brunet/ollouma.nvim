@@ -100,7 +100,7 @@ function M.select_model_action(model, model_action_opts)
         ---@param _ integer index
         function(item, _)
             if not item then
-                log.warn('no action selected, aborting')
+                log.debug('no action selected, aborting')
                 return
             end
 
@@ -150,7 +150,7 @@ function M.resume_session()
         ---@param _ integer index
         function(item, _)
             if not item then
-                log.warn('no session selected, aborting')
+                log.debug('no session selected, aborting')
                 return
             end
 
@@ -196,7 +196,7 @@ function M.exit_session()
         ---@param _ integer index
         function(item, _)
             if not item then
-                log.warn('no session selected, aborting')
+                log.debug('no session selected, aborting')
                 return
             end
 

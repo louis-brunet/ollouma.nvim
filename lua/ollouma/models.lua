@@ -38,7 +38,7 @@ function M.select_model(url, on_select)
 
         function(item, _)
             if not item then
-                log.warn('no model selected, aborting')
+                log.debug('no model selected, aborting')
                 return
             end
 

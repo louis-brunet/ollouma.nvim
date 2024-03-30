@@ -2,14 +2,11 @@ local function format_msg(...)
     return '[ollouma]: ' .. vim.fn.join({ ... }, ' ')
 end
 
-local M = {
-    --- :h vim.log.levels
-    -- TODO: value from config
-    level = vim.log.levels.INFO
-}
+local M = {}
 
 local function log(vim_level, ...)
-    if M.level > vim_level then
+    local config_log_level = require('ollouma').config.log_level
+    if config_log_level > vim_level then
         return
     end
 

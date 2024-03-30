@@ -31,7 +31,7 @@ function M.start_generation(opts)
         prompt = vim.fn.input({ prompt = 'Prompt [' .. opts.model .. ']: ', text = "n" })
 
         if not prompt or #prompt == 0 then
-            log.warn('empty prompt, aborting')
+            log.debug('empty prompt, aborting')
             return function() end
         end
     end
