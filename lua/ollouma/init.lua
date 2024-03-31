@@ -74,7 +74,7 @@ end
 -- end
 
 ---@param model string
----@param model_action_opts OlloumaModelActionOptions |nil
+---@param model_action_opts OlloumaModelActionOptions|nil
 function M.select_model_action(model, model_action_opts)
     model_action_opts = model_action_opts or {}
     vim.validate({
@@ -84,7 +84,7 @@ function M.select_model_action(model, model_action_opts)
     })
 
     local log = require('ollouma.util.log')
-    local model_actions = M.config.model_actions(model)
+    local model_actions = M.config.model_actions(model, model_action_opts)
 
     if #model_actions == 0 then
         log.warn('no actions to pick from')

@@ -35,7 +35,7 @@
 -- ---@field chat OlloumaChatConfig
 ---@field model string|nil
 ---@field api OlloumaApiConfig
----@field model_actions fun(model: string): OlloumaModelAction[]
+---@field model_actions fun(model: string, model_action_opts: OlloumaModelActionOptions|nil): OlloumaModelAction[]
 ---@field user_command_subcommands table<string, OlloumaSubcommand>
 ---@field log_level integer :h vim.log.levels
 
@@ -71,13 +71,15 @@ function M.default_config()
             models_url = '127.0.0.1:11434/api/tags',
         },
 
-        model_actions = function(model)
+        model_actions = function(model, model_action_opts)
+            model_action_opts = model_action_opts or {}
+
             ---@type OlloumaModelAction[]
-            return {
+            local actions = {
                 {
                     name = 'Generate',
-                    on_select = function(opts)
-                        opts = opts or {}
+                    on_select = function()
+                        -- opts = opts or {}
 
                         require('ollouma.generate.ui').start_interactive_ui(
                             function(prompt)
@@ -85,7 +87,7 @@ function M.default_config()
                                 return {
                                     model = model,
                                     prompt = table.concat(prompt, '\n'),
-                                    -- system = 'You MUST only respond with a single JSON object in the format:`{\n  "response": <YOUR RESPONSE>\n}`. Do not write an other explanations.\n',
+                                    -- system = 'Respond only with valid JSON.',
                                     -- format = 'json',
                                     -- options = {
                                     --     temperature = 0.0,
@@ -94,18 +96,21 @@ function M.default_config()
                             end,
                             {
                                 title = 'Generate - ' .. model,
-                                initial_prompt = opts.visual_selection,
+                                initial_prompt = model_action_opts.visual_selection,
                                 show_prompt_in_output = true,
                             }
                         )
                     end
                 },
-                {
-                    name = 'Review',
-                    on_select = function(opts)
-                        opts = opts or {}
+            }
 
-                        local prompt = opts.visual_selection
+            if model_action_opts.visual_selection then
+                table.insert(actions, {
+                    name = 'Review',
+                    on_select = function()
+                        -- opts = opts or {}
+
+                        local prompt = model_action_opts.visual_selection
                         if not prompt then
                             error('no visual selection, cannot review')
                         end
@@ -123,11 +128,28 @@ function M.default_config()
                             { show_prompt_in_output = false }
                         )
                     end
-                },
-            }
+                })
+            end
+
+            return actions
         end,
 
         user_command_subcommands = {
+            ollouma = function(cmd_opts)
+                local ollouma = require('ollouma')
+
+                local visual_selection = nil
+                if cmd_opts.range == 2 then
+                    -- NOTE: the actual position expressions seem to not be
+                    -- exposed in lua (line1 and line2 don't give the
+                    -- column numbers)
+                    -- require('ollouma.util.log').warn('TODO use get_range_text; cmd_opts=', vim.inspect(cmd_opts))
+                    visual_selection = require('ollouma.util').get_last_visual_selection()
+                end
+
+                ollouma.start({ visual_selection = visual_selection })
+            end,
+
             select_action = function(cmd_opts)
                 local ollouma = require('ollouma')
 

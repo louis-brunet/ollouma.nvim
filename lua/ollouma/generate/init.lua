@@ -41,6 +41,10 @@ function M.start_generation(opts)
     })
 
     local api = require('ollouma.util.api-client')
+
+    if opts.payload.options ~= nil and #vim.tbl_keys(opts.payload.options) == 0 then
+        opts.payload.options = nil
+    end
     -- local log = require('ollouma.util.log')
     -- local prompt = opts.prompt
     --

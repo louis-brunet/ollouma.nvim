@@ -76,17 +76,11 @@ function M.start_interactive_ui(payload_generator, opts)
                 {
                     command_name = 'OlloumaSend',
                     rhs = function()
-                        local config = require('ollouma').config
-                        local generate = require('ollouma.generate')
-
                         local output_item = split_ui:get_ui_item(interactive_ui_item_ids.OUTPUT)
                         local prompt_item = split_ui:get_ui_item(interactive_ui_item_ids.PROMPT)
 
                         local prompt = prompt_item:get_lines()
                         local generate_request_payload = payload_generator(prompt)
-                        if generate_request_payload.options ~= nil and #vim.tbl_keys(generate_request_payload.options) == 0 then
-                            generate_request_payload.options = nil
-                        end
 
                         output_item:open({ set_current_window = false })
 
@@ -169,6 +163,7 @@ function M.start_output_only_ui(payload, title, opts)
         end,
     })
     M.opened_uis[split_ui] = { title = title, created_at = os.time() }
+
     local output_item = split_ui:create_ui_item(
         output_only_ui_item_ids.OUTPUT,
         ui_utils.OlloumaSplitKind.LEFT,
