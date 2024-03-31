@@ -174,7 +174,10 @@ function M.exit_session()
         return
     end
 
-    local options = { OPTION_ALL }
+    local options = {}
+    if #opened_gen_uis > 1 then
+        table.insert(options, OPTION_ALL)
+    end
     for _, gen_ui_option in ipairs(opened_gen_uis) do
         table.insert(options, gen_ui_option)
     end
