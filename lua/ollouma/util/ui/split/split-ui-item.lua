@@ -98,7 +98,7 @@ function SplitUiItem:open(opts)
         end
     end
 
-    if self.window == nil or not vim.api.nvim_win_is_valid(self.window) then
+    if self.window == nil or not vim.api.nvim_win_is_valid(self.window) or vim.api.nvim_win_get_buf(self.window) ~= self.buffer then
         if self.split_kind == OlloumaSplitKind.LEFT then
             vim.cmd 'vsplit'
         elseif self.split_kind == OlloumaSplitKind.RIGHT then
