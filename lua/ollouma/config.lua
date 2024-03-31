@@ -78,25 +78,47 @@ function M.default_config()
                     name = 'Generate',
                     on_select = function(opts)
                         opts = opts or {}
-                        require('ollouma.generate.ui').start_ui(
-                            model,
+
+                        require('ollouma.generate.ui').start_interactive_ui(
+                            function(prompt)
+                                ---@type OlloumaGenerateRequestPayload
+                                return {
+                                    model = model,
+                                    prompt = table.concat(prompt, '\n'),
+                                    -- system = 'You MUST only respond with a single JSON object in the format:`{\n  "response": <YOUR RESPONSE>\n}`. Do not write an other explanations.\n',
+                                    -- format = 'json',
+                                    -- options = {
+                                    --     temperature = 0.0,
+                                    -- }
+                                }
+                            end,
                             {
+                                title = 'Generate - ' .. model,
                                 initial_prompt = opts.visual_selection,
                                 show_prompt_in_output = true,
-                                show_prompt_prefix_in_output = true,
-                                prompt_prefix = nil
-                                -- e.g.
-                                -- prompt_prefix = 'You MUST only respond with a single JSON object in the format:`{\n  "response": <YOUR RESPONSE>\n}`. Do not write an other explanations.\n'
                             }
                         )
                     end
                 },
-                -- {
-                --     name = 'Review',
-                --     on_select = function()
-                --         require('ollouma.generate').start_review_ui(model)
-                --     end
-                -- },
+                {
+                    name = 'Review',
+                    on_select = function(opts)
+                        opts = opts or {}
+
+                        local prompt = 'TODO visual selection or error ?'
+                        require('ollouma.generate.ui').start_output_only_ui(
+                            {
+                                model = model,
+                                prompt = prompt,
+                                system = 'TODO',
+                                options = {
+                                    temperature = 0,
+                                },
+                            },
+                            {}
+                        )
+                    end
+                },
             }
         end,
 
@@ -107,7 +129,7 @@ function M.default_config()
                 local visual_selection = nil
                 if cmd_opts.range == 2 then
                     -- NOTE: the actual position expressions seem to not be
-                    -- exposed in cmd_opts (line1 and line2 don't give the
+                    -- exposed in lua (line1 and line2 don't give the
                     -- column numbers)
                     -- require('ollouma.util.log').warn('TODO use get_range_text; cmd_opts=', vim.inspect(cmd_opts))
                     visual_selection = require('ollouma.util').get_last_visual_selection()

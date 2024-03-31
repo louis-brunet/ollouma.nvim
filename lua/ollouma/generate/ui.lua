@@ -1,13 +1,5 @@
----@class OlloumaGenerateUiOptions
----@field api_url string|nil
----@field initial_prompt string|nil
----@field prompt_prefix string|nil
----@field format 'json'|nil
----@field show_prompt_in_output boolean|nil
----@field show_prompt_prefix_in_output boolean|nil
-
 ---@class OlloumaGenerateOpenedUiMetadata
----@field model string
+---@field title string
 ---@field created_at integer
 
 ---@class OlloumaGenerateOpenedUi
@@ -38,160 +30,131 @@ function M.list_opened_uis()
     return opened_list
 end
 
----@param model string
----@param opts OlloumaGenerateUiOptions|nil
----@return OlloumaSplitUi split_ui
-function M.start_ui(model, opts)
-    local config = require('ollouma').config
-    local generate = require('ollouma.generate')
-    opts = opts or {}
+---@class OlloumaGenerateInteractiveUiOptions
+---@field title string
+---@field initial_prompt string|nil
+---@field show_prompt_in_output boolean|nil
 
+---@param payload_generator fun(prompt: string[]): OlloumaGenerateRequestPayload
+---@param opts OlloumaGenerateInteractiveUiOptions
+---@return OlloumaSplitUi
+function M.start_interactive_ui(payload_generator, opts)
     vim.validate({
-        model = { model, 'string' },
-        api_url = { opts.api_url, { 'string', 'nil' } },
+        title = { opts.title, { 'string' } },
         initial_prompt = { opts.initial_prompt, { 'string', 'nil' } },
-        prompt_prefix = { opts.prompt_prefix, { 'string', 'nil' } },
-        show_prompt_in_output = { opts.show_prompt_in_output, { 'boolean', 'nil' } },
-        show_prompt_prefix_in_output = { opts.show_prompt_prefix_in_output, { 'boolean', 'nil' } },
     })
-    local ui_utils = require('ollouma.util.ui')
 
-    ---@type OlloumaSplitUi
-    local split_ui = ui_utils.SplitUi:new({
-        prompt_split = ui_utils.OlloumaSplitKind.LEFT,
-        output_split = ui_utils.OlloumaSplitKind.BOTTOM,
-        model_name = model,
+    local ui_utils = require('ollouma.util.ui')
+    local util = require('ollouma.util')
+    local interactive_ui_item_ids = {
+        PROMPT = 'prompt',
+        OUTPUT = 'output',
+    }
+    local split_ui = ui_utils.OlloumaSplitUi:new({
+        custom_resume_session = function(split_ui)
+            local prompt_item = split_ui:get_ui_item(interactive_ui_item_ids.PROMPT)
+            local output_item = split_ui:get_ui_item(interactive_ui_item_ids.OUTPUT)
+
+            prompt_item:open({ set_current_window = true })
+            output_item:open()
+        end,
         on_exit = function(split_ui)
             M.opened_uis[split_ui] = nil
-        end
+        end,
     })
-
     M.opened_uis[split_ui] = {
-        model = model,
+        title = opts.title,
         created_at = os.time()
     }
-
-    local prompt_commands = {
-        OlloumaSend = {
-            rhs = function()
-                split_ui:open_output()
-                local prompt = split_ui:get_prompt_lines()
-
-                -- M.send_prompt(
-                --     {
-                --         model = model,
-                --         prompt = vim.fn.join(prompt, '\n'),
-                --         system = opts.prompt_prefix,
-                --         format = opts.format,
-                --     },
-                --     split_ui.output,
-                --     split_ui
-                -- )
-
-                if opts.show_prompt_in_output then
-                    split_ui:output_write_lines({ '<!------ Prompt ------>' })
-                    if opts.show_prompt_prefix_in_output and opts.prompt_prefix then
-                        split_ui:ouput_write('\n' .. opts.prompt_prefix)
-                    end
-                    split_ui:output_write_lines(prompt)
-                    split_ui:output_write_lines({ '<!------ Output ------>', '' })
-                end
-
-                ---@type OlloumaGenerateOptions
-                local generate_opts = {
-                    payload = {
-                        model = model,
-                        prompt = vim.fn.join(prompt, '\n'),
-                        system = opts.prompt_prefix,
-                        format = opts.format,
-                    },
-                    api_url = (opts.api_url or config.api.generate_url),
-                    on_response = function(partial_response)
-                        split_ui:ouput_write(partial_response)
-                    end,
-                    on_response_end = function()
-                        vim.api.nvim_buf_del_user_command(split_ui.prompt.buffer, 'OlloumaGenStop')
-                        vim.api.nvim_buf_del_user_command(split_ui.output.buffer, 'OlloumaGenStop')
-                        split_ui:output_write_lines({ '<!-------------------->', '' })
-                    end
-                }
-
-                local stop_generation = generate.start_generation(generate_opts)
-
-                local function stop()
-                    stop_generation()
-                    generate_opts.on_response_end()
-                end
-
-                split_ui:create_user_command(
-                    'OlloumaGenStop',
-                    { rhs = stop, opts = {} },
-                    { split_ui.prompt, split_ui.output }
-                )
-            end,
-            opts = {},
-        },
-    }
-
-    --- TODO: configurable buffer keymaps
-
-    ---@type OlloumaSplitUiBufferKeymap[]
-    local prompt_keymaps = {
+    local prompt_item = split_ui:create_ui_item(
+        interactive_ui_item_ids.PROMPT,
+        ui_utils.OlloumaSplitKind.LEFT,
         {
-            lhs = '<leader>os',
-            rhs = ':OlloumaSend<CR>', -- TODO: this rhs should be requireable in lua
-            opts = {},
-        },
-    }
+            display_name = 'PROMPT [' .. opts.title .. ']',
+            buffer_commands = {
+                {
+                    command_name = 'OlloumaSend',
+                    rhs = function()
+                        local config = require('ollouma').config
+                        local generate = require('ollouma.generate')
 
-    split_ui:open_prompt(prompt_commands, prompt_keymaps, opts.initial_prompt)
+                        local output_item = split_ui:get_ui_item(interactive_ui_item_ids.OUTPUT)
+                        local prompt_item = split_ui:get_ui_item(interactive_ui_item_ids.PROMPT)
 
+                        local prompt = prompt_item:get_lines()
+                        local generate_request_payload = payload_generator(prompt)
+                        if generate_request_payload.options and #vim.tbl_keys(generate_request_payload.options) == 0 then
+                            generate_request_payload.options = nil
+                        end
+
+                        output_item:open({ set_current_window = false })
+
+                        if opts.show_prompt_in_output then
+                            output_item:write_lines({ '<!------ Prompt ------>' })
+                            output_item:write_lines(prompt)
+                            output_item:write_lines({ '<!------ Output ------>', '' })
+                        end
+
+                        ---@type OlloumaGenerateOptions
+                        local generate_opts = {
+                            payload = generate_request_payload,
+                            api_url = config.api.generate_url,
+                            on_response = function(partial_response)
+                                output_item:write(partial_response)
+                            end,
+                            on_response_end = function()
+                                if prompt_item.buffer then
+                                    vim.api.nvim_buf_del_user_command(prompt_item.buffer, 'OlloumaGenStop')
+                                end
+                                if output_item.buffer then
+                                    vim.api.nvim_buf_del_user_command(output_item.buffer, 'OlloumaGenStop')
+                                end
+                                output_item:write_lines({ '<!-------------------->', '' })
+                            end
+                        }
+
+                        local stop_generation = generate.start_generation(generate_opts)
+
+                        local function stop()
+                            stop_generation()
+                            generate_opts.on_response_end()
+                        end
+
+                        if prompt_item.buffer then
+                            vim.api.nvim_buf_create_user_command(prompt_item.buffer, 'OlloumaGenStop', stop, {})
+                        end
+                        if output_item.buffer then
+                            vim.api.nvim_buf_create_user_command(output_item.buffer, 'OlloumaGenStop', stop, {})
+                        end
+                    end,
+                    opts = {}
+                },
+            },
+            buffer_keymaps = {
+                {
+                    lhs = '<leader>os', rhs = ':OlloumaSend<CR>'
+                },
+            },
+        }
+    )
+    local _ = split_ui:create_ui_item(
+        interactive_ui_item_ids.OUTPUT,
+        ui_utils.OlloumaSplitKind.BOTTOM,
+        { display_name = 'OUTPUT [' .. opts.title .. ']' }
+    )
+
+    prompt_item:open({ set_current_window = true })
+    if opts.initial_prompt then
+        util.buf_append_string(prompt_item.buffer, opts.initial_prompt)
+    end
     return split_ui
 end
 
--- TODO: finish refactor ?
--- ---@param payload OlloumaGenerateRequestPayload
--- ---@param output_ui_item OlloumaSplitUiItem
--- ---@param split_ui OlloumaSplitUi
--- function M.send_prompt(payload, output_ui_item)
---     local config = require('ollouma').config
---     local generate = require('ollouma.generate')
---
---     if opts.show_prompt_in_output then
---         split_ui:output_write_lines({ '<!------ Prompt ------>' })
---         if opts.show_prompt_prefix_in_output and opts.prompt_prefix then
---             split_ui:ouput_write('\n' .. opts.prompt_prefix)
---         end
---         split_ui:output_write_lines(prompt)
---         split_ui:output_write_lines({ '<!------ Output ------>', '' })
---     end
---
---     ---@type OlloumaGenerateOptions
---     local generate_opts = {
---         payload = payload,
---         api_url = (opts.api_url or config.api.generate_url),
---         on_response = function(partial_response)
---             split_ui:ouput_write(partial_response)
---         end,
---         on_response_end = function()
---             vim.api.nvim_buf_del_user_command(split_ui.prompt.buffer, 'OlloumaGenStop')
---             vim.api.nvim_buf_del_user_command(split_ui.output.buffer, 'OlloumaGenStop')
---             split_ui:output_write_lines({ '<!-------------------->', '' })
---         end
---     }
---
---     local stop_generation = generate.start_generation(generate_opts)
---
---     local function stop()
---         stop_generation()
---         generate_opts.on_response_end()
---     end
---
---     split_ui:create_user_command(
---         'OlloumaGenStop',
---         { rhs = stop, opts = {} },
---         { split_ui.prompt, split_ui.output }
---     )
--- end
+---@param payload OlloumaGenerateRequestPayload
+---@param opts any TODO: any options ?
+function M.start_output_only_ui(payload, opts)
+    opts = opts or {}
+    error('todo')
+end
 
 return M

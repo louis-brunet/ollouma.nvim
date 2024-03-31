@@ -1,25 +1,28 @@
---- https://github.com/ollama/ollama/blob/main/docs/modelfile.md#valid-parameters-and-values
+--- Full list: https://github.com/ollama/ollama/blob/main/docs/modelfile.md#valid-parameters-and-values
+--- (permalink as of writing this: https://github.com/ollama/ollama/blob/e1f1c374ea3033d55e4975fbb60a5873f716b8ba/docs/modelfile.md#valid-parameters-and-values)
 ---@class OlloumaGenerateRequestPayloadOptions
----@field temperature float The temperature of the model. Increasing the temperature will make the model answer more creatively. (Default: 0.8)
----@field num_predict integer Maximum number of tokens to predict when generating text. (Default: 128, -1 = infinite generation, -2 = fill context)
----@field seed integer Sets the random number seed to use for generation. Setting this to a specific number will make the model generate the same text for the same prompt. (Default: 0)
+---@field num_ctx integer|nil Sets the size of the context window used to generate the next token. (Default: 2048)
+---@field num_predict integer|nil Maximum number of tokens to predict when generating text. (Default: 128, -1 = infinite generation, -2 = fill context)
+---@field seed integer|nil Sets the random number seed to use for generation. Setting this to a specific number will make the model generate the same text for the same prompt. (Default: 0)
+---@field temperature float|nil The temperature of the model. Increasing the temperature will make the model answer more creatively. (Default: 0.8)
 
 --- https://github.com/ollama/ollama/blob/main/docs/api.md#parameters
+--- (permalink as of writing this: https://github.com/ollama/ollama/blob/e1f1c374ea3033d55e4975fbb60a5873f716b8ba/docs/api.md#parameters)
 ---@class OlloumaGenerateRequestPayload
----@field model string (required) the model name
----@field prompt string the prompt to generate a response for
----@field options OlloumaGenerateRequestPayloadOptions|nil additional model parameters listed in the documentation for the Modelfile such as temperature
----@field system string|nil system message to (overrides what is defined in the Modelfile)
 ---@field format 'json'|nil the format to return a response in. Currently the only accepted value is json
----@field template string|nil the prompt template to use (overrides what is defined in the Modelfile)
----@field stream boolean|nil if false the response will be returned as a single response object, rather than a stream of objects
 ---@field keep_alive string|nil controls how long the model will stay loaded into memory following the request (default: 5m)
+---@field model string (required) the model name
+---@field options OlloumaGenerateRequestPayloadOptions|nil additional model parameters listed in the documentation for the Modelfile such as temperature
+---@field prompt string the prompt to generate a response for
+---@field stream boolean|nil if false the response will be returned as a single response object, rather than a stream of objects
+---@field system string|nil system message to (overrides what is defined in the Modelfile)
+---@field template string|nil the prompt template to use (overrides what is defined in the Modelfile)
 
 ---@class OlloumaGenerateOptions
----@field payload OlloumaGenerateRequestPayload
 ---@field api_url string
 ---@field on_response fun(partial_response: string): nil
 ---@field on_response_end fun(): nil only called when the response is finished, not when it is prematurely aborted by the user
+---@field payload OlloumaGenerateRequestPayload
 
 ---@class OlloumaGenerateModule
 local M = {}

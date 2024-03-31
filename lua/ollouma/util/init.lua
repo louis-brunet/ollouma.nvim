@@ -47,4 +47,27 @@ function M.get_range_text(expr_start, expr_end)
     return region_to_text(region)
 end
 
+-- ---@param value any
+-- ---@param possible_values any[]
+-- ---@param rule_display_name string|nil
+-- ---@return boolean
+-- function M.validate_enum(value, possible_values, rule_display_name)
+--     for _, possible_value in ipairs(possible_values) do
+--         if value == possible_value then
+--             return true
+--         end
+--     end
+--
+--     local prefix = ''
+--     if rule_display_name then
+--         prefix = '(' .. rule_display_name .. ') '
+--     end
+--
+--     error(
+--         prefix .. 'invalid value. Expected one of ['
+--         .. table.concat(possible_values, ', ')
+--         .. '], got ' .. vim.inspect(value)
+--     )
+-- end
+
 return M

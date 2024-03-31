@@ -146,7 +146,7 @@ function M.resume_session()
             ---@param item OlloumaGenerateOpenedUi
             ---@return string
             format_item = function(item)
-                return vim.fn.printf('%s - generate (%s)', item.metadata.model, os.date(nil, item.metadata.created_at))
+                return vim.fn.printf('%s (%s)', item.metadata.title, os.date(nil, item.metadata.created_at))
             end
         },
 
@@ -158,7 +158,7 @@ function M.resume_session()
                 return
             end
 
-            item.ui:open_windows()
+            item.ui:resume_session()
         end
     )
 end
@@ -192,7 +192,7 @@ function M.exit_session()
                     return item
                 end
 
-                return vim.fn.printf('%s - generate (%s)', item.metadata.model, os.date(nil, item.metadata.created_at))
+                return vim.fn.printf('%s (%s)', item.metadata.title, os.date(nil, item.metadata.created_at))
             end
         },
 

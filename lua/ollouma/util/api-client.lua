@@ -90,7 +90,6 @@ end
 
 ---@param url string
 function M.find_all_models(url)
-    local log = require('ollouma.util.log')
     local models_result = M.get_sync(url)
 
     vim.validate({ models_result = { models_result, 'string' } })
@@ -157,6 +156,10 @@ end
 ---@param on_stdout false|nil|fun(err?: string, data?: string): nil
 ---@param on_exit fun(out: vim.SystemCompleted): nil
 function M.post_stream(url, json_body, on_stdout, on_exit)
+    local log = require('ollouma.util.log')
+    local json_encoded_body = vim.json.encode(json_body)
+    log.trace('POST ' .. url .. '\n' .. json_encoded_body)
+
     local ok, res = pcall(
         system.run,
         {
@@ -165,7 +168,7 @@ function M.post_stream(url, json_body, on_stdout, on_exit)
             '-X',
             'POST',
             '--data-raw',
-            vim.json.encode(json_body),
+            json_encoded_body,
             url,
         },
         { text = true, stdout = on_stdout },
