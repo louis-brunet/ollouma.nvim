@@ -114,8 +114,8 @@ function SplitUi:close_windows()
     local log = require('ollouma.util.log')
 
     for item_id, ui_item in pairs(self.ui_items) do
-        if ui_item.window then
-            local ok, err = pcall(vim.api.nvim_win_close, ui_item.window, false) -- true ?
+        if ui_item.window and vim.api.nvim_win_is_valid(ui_item.window) then
+            local ok, err = pcall(vim.api.nvim_win_close, ui_item.window, false) -- true for force ?
 
             if ok then
                 ui_item.window = nil
@@ -130,8 +130,8 @@ function SplitUi:destroy_buffers()
     local log = require('ollouma.util.log')
 
     for item_id, ui_item in pairs(self.ui_items) do
-        if ui_item.buffer then
-            local ok, err = pcall(vim.api.nvim_buf_delete, ui_item.buffer, {}) -- true ?
+        if ui_item.buffer and vim.api.nvim_buf_is_valid(ui_item.buffer) then
+            local ok, err = pcall(vim.api.nvim_buf_delete, ui_item.buffer, {})
 
             if ok then
                 ui_item.buffer = nil
