@@ -21,7 +21,7 @@
 ---@class OlloumaGenerateOptions
 ---@field api_url string
 ---@field on_response fun(partial_response: string): nil
----@field on_response_end fun(): nil only called when the response is finished, not when it is prematurely aborted by the user
+---@field on_response_end nil|fun():nil only called when the response is finished, not when it is prematurely aborted by the user
 ---@field payload OlloumaGenerateRequestPayload
 
 ---@class OlloumaGenerateModule

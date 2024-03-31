@@ -105,17 +105,22 @@ function M.default_config()
                     on_select = function(opts)
                         opts = opts or {}
 
-                        local prompt = 'TODO visual selection or error ?'
+                        local prompt = opts.visual_selection
+                        if not prompt then
+                            error('no visual selection, cannot review')
+                        end
+
                         require('ollouma.generate.ui').start_output_only_ui(
                             {
                                 model = model,
                                 prompt = prompt,
-                                system = 'TODO',
+                                system = 'You are an expert programmer. Please review the following code and list possible improvements. This code was taken directly from my IDE and is part of a larger codebase.',
                                 options = {
                                     temperature = 0,
                                 },
                             },
-                            {}
+                            'Review - ' .. model,
+                            { show_prompt_in_output = false }
                         )
                     end
                 },
