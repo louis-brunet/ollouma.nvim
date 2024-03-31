@@ -39,6 +39,12 @@ function SplitUiItem:new(display_name, split_kind, opts)
     return setmetatable(split_ui_item, self)
 end
 
+function SplitUiItem:is_window_valid()
+    return self.window ~= nil and
+        vim.api.nvim_win_is_valid(self.window) and
+        self.buffer == vim.api.nvim_win_get_buf(self.window)
+end
+
 function SplitUiItem:get_lines()
     if self.buffer == nil then
         return {}
@@ -98,7 +104,7 @@ function SplitUiItem:open(opts)
         end
     end
 
-    if self.window == nil or not vim.api.nvim_win_is_valid(self.window) or vim.api.nvim_win_get_buf(self.window) ~= self.buffer then
+    if not self:is_window_valid() then
         if self.split_kind == OlloumaSplitKind.LEFT then
             vim.cmd 'vsplit'
         elseif self.split_kind == OlloumaSplitKind.RIGHT then
@@ -146,6 +152,15 @@ function SplitUiItem:open(opts)
         current_window = self.window
     end
     vim.api.nvim_set_current_win(current_window)
+end
+
+---@param force boolean|nil
+function SplitUiItem:close_window(force)
+    if self:is_window_valid() then
+        vim.api.nvim_win_close(self.window, force or false)
+    end
+
+    self.window = nil
 end
 
 return SplitUiItem

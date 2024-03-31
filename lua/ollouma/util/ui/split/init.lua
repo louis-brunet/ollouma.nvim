@@ -94,19 +94,10 @@ function SplitUi:resume_session()
     end
 
     for _, ui_item in pairs(self.ui_items) do
-        if ui_item.window == nil or not vim.api.nvim_win_is_valid(ui_item.window) then
+        if not ui_item:is_window_valid() then
             ui_item.window = nil
             ui_item:open()
         end
-    end
-end
-
-function SplitUi:exit()
-    self:close_windows()
-    self:destroy_buffers()
-
-    if self.on_exit then
-        self:on_exit()
     end
 end
 
@@ -114,14 +105,10 @@ function SplitUi:close_windows()
     local log = require('ollouma.util.log')
 
     for item_id, ui_item in pairs(self.ui_items) do
-        if ui_item.window and vim.api.nvim_win_is_valid(ui_item.window) then
-            local ok, err = pcall(vim.api.nvim_win_close, ui_item.window, false) -- true for force ?
+        local ok, err = pcall(ui_item.close_window, ui_item)
 
-            if ok then
-                ui_item.window = nil
-            else
-                log.error('could not close window for ui item with id "' .. item_id .. '": ' .. err)
-            end
+        if not ok then
+            log.error('could not close window for ui item with id "' .. item_id .. '": ' .. err)
         end
     end
 end
@@ -139,6 +126,15 @@ function SplitUi:destroy_buffers()
                 log.error('could not delete buffer for ui item with id "' .. item_id .. '": ' .. err)
             end
         end
+    end
+end
+
+function SplitUi:exit()
+    self:close_windows()
+    self:destroy_buffers()
+
+    if self.on_exit then
+        self:on_exit()
     end
 end
 
