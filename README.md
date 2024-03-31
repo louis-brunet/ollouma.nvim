@@ -2,30 +2,29 @@
 
 ## Installation
 
-### with lazy.nvim
+1. with lazy.nvim
 
-```lua
----@type LazySpec
-{
-    'louis-brunet/ollouma.nvim'
+    ```lua
+    ---@type LazySpec
+    {
+        'louis-brunet/ollouma.nvim'
 
-    dependencies = {
-        -- TODO: document dependencies (lua and system)
-    },
+        dependencies = {
+            -- TODO: document dependencies (lua and system)
+        },
 
-    opts = {
-        -- see [Setup](#setup)
-    },
+        ---@type OlloumaPartialConfig
+        opts = {}, -- see [Setup](#setup)
 
-    -- config = function(_, opts)
-    --     local ollouma = require 'ollouma'
-    --
-    --     ollouma.setup(opts)
-    -- end
-}
-```
+        -- config = function(_, opts)
+        --     local ollouma = require('ollouma')
+        --
+        --     ollouma.setup(opts)
+        -- end
+    }
+    ```
 
-## Configuration options
+## Setup, configuration options
 
 ```lua
 ---@type OlloumaConfig

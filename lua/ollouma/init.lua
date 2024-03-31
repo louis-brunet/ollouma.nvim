@@ -25,19 +25,20 @@ function M.setup(partial_config)
                     return
                 end
 
-                -- TODO: get visual selection here?
-                require('ollouma').start()
-            else
-                -- :Ollouma <arg>
+                log.info('to set a default behavior for Ollouma, define a subcommand "ollouma"')
 
-                local subcommand = subcommands[arg]
-                if not subcommand then
-                    log.error('invalid subcommand: "' .. arg .. '"')
-                    return
-                end
-
-                subcommand(cmd_opts)
+                return
             end
+
+            -- :Ollouma <arg>
+
+            local subcommand = subcommands[arg]
+            if not subcommand then
+                log.error('invalid subcommand: "' .. arg .. '"')
+                return
+            end
+
+            subcommand(cmd_opts)
         end,
 
         -- :h nvim_create_user_command()
@@ -75,9 +76,11 @@ end
 ---@param model string
 ---@param model_action_opts OlloumaModelActionOptions |nil
 function M.select_model_action(model, model_action_opts)
+    model_action_opts = model_action_opts or {}
     vim.validate({
         model = { model, 'string' },
         model_action_opts = { model_action_opts, { 'table', 'nil' } },
+        model_action_opts_visual_selection = { model_action_opts.visual_selection, { 'string', 'nil' } },
     })
 
     local log = require('ollouma.util.log')
@@ -125,6 +128,7 @@ function M.start(model_action_opts)
     end)
 end
 
+-- TODO: refactor session handling (name formatting; selection?; in generate module ?)
 function M.resume_session()
     local log = require('ollouma.util.log')
     local opened_gen_uis = require('ollouma.generate.ui').list_opened_uis()
@@ -159,7 +163,7 @@ function M.resume_session()
     )
 end
 
--- TODO: refactor (name formatting; selection?; in generate module ?)
+-- TODO: refactor session handling (name formatting; selection?; in generate module ?)
 function M.exit_session()
     local log = require('ollouma.util.log')
     local OPTION_ALL = 'all'

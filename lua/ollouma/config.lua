@@ -62,7 +62,7 @@ function M.default_config()
 
         -- chat = {
         --     model = 'mistral',
-        --     system_prompt = '', -- TODO: chat + system prompt
+        --     system_prompt = '',
         -- },
 
         api = {
@@ -78,9 +78,16 @@ function M.default_config()
                     name = 'Generate',
                     on_select = function(opts)
                         opts = opts or {}
-                        require('ollouma.generate').start_generate_ui(
+                        require('ollouma.generate.ui').start_ui(
                             model,
-                            { initial_prompt = opts.visual_selection }
+                            {
+                                initial_prompt = opts.visual_selection,
+                                show_prompt_in_output = true,
+                                show_prompt_prefix_in_output = true,
+                                prompt_prefix = nil
+                                -- e.g.
+                                -- prompt_prefix = 'You MUST only respond with a single JSON object in the format:`{\n  "response": <YOUR RESPONSE>\n}`. Do not write an other explanations.\n'
+                            }
                         )
                     end
                 },
