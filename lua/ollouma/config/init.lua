@@ -89,7 +89,7 @@ local default_prompts = {
             },
 
             {
-                action_name = 'Generate JSON',
+                action_name = 'Generate JSON (TODO: set output filetype + custom output separator?)',
                 payload_generator = function(model, prompt, _)
                     ---@type OlloumaGenerateRequestPayload
                     return {
@@ -125,6 +125,7 @@ local default_prompts = {
                         model = model,
                         prompt = model_action_opts.visual_selection,
                         system = 'Please review the following code snippet and list any improvements to be made.'
+                            .. ' Only give relevant suggestions with performant implementations.'
                             -- .. ' Keep in mind that this code it is part of a larger codebase.'
                             .. ' Here is the code snippet' .. filetype_sentence .. ': ',
                         options = {
