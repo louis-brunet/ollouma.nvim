@@ -17,16 +17,28 @@ function M.setup(partial_config)
         function(cmd_opts)
             local arg = cmd_opts.fargs[1]
 
+            ---@type OlloumaModelActionOptions
+            local model_action_opts = {
+                visual_selection = nil,
+                filetype = vim.api.nvim_buf_get_option(0, 'ft')
+            }
+            if cmd_opts.range == 2 then
+                -- NOTE: the actual position expressions seem to not be
+                -- exposed in lua (line1 and line2 don't give the
+                -- column numbers)
+                -- require('ollouma.util.log').warn('TODO use get_range_text; cmd_opts=', vim.inspect(cmd_opts))
+                model_action_opts.visual_selection = require('ollouma.util').get_last_visual_selection()
+            end
+
             if not arg then
                 -- :Ollouma
 
                 if type(subcommands.ollouma) == 'function' then
-                    subcommands.ollouma(cmd_opts)
+                    subcommands.ollouma(cmd_opts, model_action_opts)
                     return
                 end
 
                 log.info('to set a default behavior for Ollouma, define a subcommand "ollouma"')
-
                 return
             end
 
@@ -38,7 +50,11 @@ function M.setup(partial_config)
                 return
             end
 
-            subcommand(cmd_opts)
+            vim.validate({
+                subcommand = { subcommand, { 'function' } },
+            })
+
+            subcommand(cmd_opts, model_action_opts)
         end,
 
         -- :h nvim_create_user_command()

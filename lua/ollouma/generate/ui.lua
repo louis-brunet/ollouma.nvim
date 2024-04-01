@@ -245,8 +245,9 @@ function M.generate_to_ui_item(output_item, payload, opts)
         on_response_end = opts.on_response_end,
         on_api_error = function(api_error)
             remove_loading_indicator()
-            output_item:write_lines({ '<!-- ERROR: ' .. api_error.reason .. ' -->', '' })
+            output_item:write_lines({ '<!-- ERROR: ' .. api_error.reason .. ' -->' })
             if api_error.stderr then
+                output_item:write_lines({ '<!-- STDERR -->', '' })
                 output_item:write(api_error.stderr)
             end
         end
