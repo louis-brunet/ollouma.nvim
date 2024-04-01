@@ -23,6 +23,7 @@
 ---@field on_response_start nil|fun():nil called when the response stream has started being generated
 ---@field on_response fun(partial_response: string): nil
 ---@field on_response_end nil|fun():nil only called when the response is finished, not when it is prematurely aborted by the user
+---@field on_api_error nil|fun(api_error: OlloumaApiError): nil
 ---@field payload OlloumaGenerateRequestPayload
 
 ---@class OlloumaGenerateModule
@@ -37,6 +38,7 @@ function M.start_generation(opts)
         prompt = { opts.payload.prompt, { 'string' } },
         system = { opts.payload.system, { 'string', 'nil' } },
         api_url = { opts.api_url, 'string' },
+        on_api_error = { opts.on_api_error, { 'function', 'nil' } },
         on_response_start = { opts.on_response_start, { 'function', 'nil' } },
         on_response = { opts.on_response, 'function' },
         on_response_end = { opts.on_response_end, { 'function', 'nil' } },
@@ -65,28 +67,39 @@ function M.start_generation(opts)
 
         opts.payload,
 
-        ---@param response OlloumaGenerateResponseChunkDto
-        function(response)
-            if is_first_response_chunk then
-                if opts.on_response_start then
-                    vim.schedule(opts.on_response_start)
-                end
-                is_first_response_chunk = false
-            end
-
-            if response.done then
-                if opts.on_response_end then
-                    vim.schedule(opts.on_response_end)
+        {
+            ---@param response OlloumaGenerateResponseChunkDto
+            on_response_chunk = function(response)
+                if is_first_response_chunk then
+                    if opts.on_response_start then
+                        vim.schedule(opts.on_response_start)
+                    end
+                    is_first_response_chunk = false
                 end
 
-                -- TODO: any cleanup/final actions ? (note: should also be done in wrapper func around api_stop_generation)
-                return
-            end
+                if response.done then
+                    if opts.on_response_end then
+                        vim.schedule(opts.on_response_end)
+                    end
 
-            vim.schedule(function()
-                opts.on_response(response.response)
-            end)
-        end
+                    -- TODO: any cleanup/final actions ? (note: should also be done in wrapper func around api_stop_generation)
+                    return
+                end
+
+                vim.validate({
+                    response = { response.response, { 'string' } }
+                })
+
+                vim.schedule(function()
+                    opts.on_response(response.response)
+                end)
+            end,
+            on_error = function(api_error)
+                vim.schedule(function()
+                    opts.on_api_error(api_error)
+                end)
+            end
+        }
     )
 
     return api_stop_generation

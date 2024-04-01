@@ -1,17 +1,20 @@
 # ollouma.nvim (WIP)
 
+## Dependencies
+
+### System
+
+- `curl`
+
 ## Installation
 
 1. with lazy.nvim
-
     ```lua
     ---@type LazySpec
     {
         'louis-brunet/ollouma.nvim'
 
-        dependencies = {
-            -- TODO: document dependencies (lua and system)
-        },
+        dependencies = {},
 
         ---@type OlloumaPartialConfig
         opts = {}, -- see [Setup](#setup)
@@ -29,7 +32,7 @@
 ```lua
 ---@type OlloumaConfig
 {
--- TODO: document config
+-- TODO: document default config
 }
 ```
 

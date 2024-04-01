@@ -91,7 +91,7 @@ local default_prompts = {
                         local filetype = vim.api.nvim_buf_get_option(0, 'ft')
                         if filetype then
                             filetype_sentence =
-                                ' My IDE has detected that this file is written in "' ..
+                                ' My IDE has detected that code is from a file whose filetype is "' ..
                                 filetype .. '".'
                         end
                     end
@@ -105,7 +105,7 @@ local default_prompts = {
                             'This code was taken directly from my IDE and is part of a larger codebase.' ..
                             filetype_sentence,
                         options = {
-                            temperature = 0,
+                            temperature = 0.8,
                         },
                     }
                 end,

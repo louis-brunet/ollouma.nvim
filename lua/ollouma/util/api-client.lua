@@ -14,13 +14,65 @@
 ---@class OlloumaChatResponseChunkDto: OlloumaResponseChunkDto
 ---@field message? OlloumaChatMessageDto
 
+---@enum OlloumaApiErrorReason
+local OlloumaApiErrorReason = {
+    -- cURL errors
+    UNSUPPORTED_PROTOCOL = 'protocol',
+    URL_MALFORMED = 'url',
+    RESOLVE_PROXY = 'resolve_proxy',
+    RESOLVE_HOST = 'resolve_host',
+    CONNECTION_FAILED = 'connection',
+    PARSE_HTTP = 'parse_http',
 
----@class OlloumaApiCallbacks
----@field on_response_chunk? fun(response: OlloumaResponseChunkDto): nil
+    -- App errors
+    -- PARSE_JSON = 'parse_json',
+
+    UNKNOWN_ERROR = 'unknown'
+}
+
+local curl_status_codes = {
+    [1] = OlloumaApiErrorReason.UNSUPPORTED_PROTOCOL,
+    [3] = OlloumaApiErrorReason.URL_MALFORMED,
+    [5] = OlloumaApiErrorReason.RESOLVE_PROXY,
+    [6] = OlloumaApiErrorReason.RESOLVE_HOST,
+    [7] = OlloumaApiErrorReason.CONNECTION_FAILED,
+    [8] = OlloumaApiErrorReason.PARSE_HTTP,
+}
+
+---@param status_code integer
+---@param stderr string|nil
+---@return OlloumaApiError|nil
+local function curl_status_code_to_api_error(status_code, stderr)
+    if status_code == 0 or status_code == nil then
+        return nil
+    end
+
+    ---@type OlloumaApiErrorReason|nil
+    local reason = curl_status_codes[status_code]
+
+    if reason == nil then
+        reason = OlloumaApiErrorReason.UNKNOWN_ERROR
+    end
+
+    ---@type OlloumaApiError
+    return {
+        reason = reason,
+        stderr = stderr
+    }
+end
+
+---@class OlloumaApiError
+---@field reason OlloumaApiErrorReason
+---@field stderr string|nil
+
+---@class OlloumaApiStreamCallbacks
+---@field on_response_chunk nil|fun(response: OlloumaResponseChunkDto): nil
+---@field on_error nil|fun(error: OlloumaApiError): nil
 -- ---@field on_exit? fun(completed: vim.SystemCompleted): nil
 
 ---@alias NullableJsonData (JsonData|nil)
 ---@alias JsonData string|integer|float|boolean|(NullableJsonData)[]|table<string, NullableJsonData>
+
 
 
 -- vim.system added in neovim 0.10 (nightly as of writing this)
@@ -44,10 +96,13 @@ local M = {}
 
 ---@param url string
 ---@param json_body JsonData
----@param on_response_chunk? fun(response: OlloumaResponseChunkDto): nil
-function M.stream_response(url, json_body, on_response_chunk)
+---@param callbacks OlloumaApiStreamCallbacks|nil
+-- ---@param on_response_chunk? fun(response: OlloumaResponseChunkDto): nil
+function M.stream_response(url, json_body, callbacks)
+    callbacks = callbacks or {}
     vim.validate({
-        on_response_chunk = { on_response_chunk, 'function' },
+        on_response_chunk = { callbacks.on_response_chunk, { 'function' } },
+        on_error = { callbacks.on_error, { 'function', 'nil' } },
         url = { url, 'string' },
     })
 
@@ -55,30 +110,34 @@ function M.stream_response(url, json_body, on_response_chunk)
         url,
         json_body,
         function(_, stdout_data)
-            if not stdout_data or not on_response_chunk then
+            if not stdout_data or not callbacks.on_response_chunk then
                 return
             end
 
-            ---@type JsonData|nil
-            local decoded_json = vim.json.decode(stdout_data)
+            ---@type boolean, JsonData|nil
+            local ok, decoded_json = pcall(vim.json.decode, stdout_data)
 
             -- print('STDOUT: ' .. ((decoded_json or {}).response or "")) -- vim.inspect(decoded_json))
-            if not decoded_json then
+            if not ok or not decoded_json then
                 error("could not decode JSON output: ''" .. stdout_data .. "'")
-                -- TODO: handle json decode error (vim.json.decode
-                --       can probably throw an error, need pcall?)
                 return
             end
 
             local validated = validate_response_dto(decoded_json)
 
-            on_response_chunk(validated)
+            callbacks.on_response_chunk(validated)
         end,
         function(completed)
             -- TODO: cleanup here ?
 
             if completed.code ~= 0 then
-                error('command execution failed: ' .. completed.stderr)
+                local api_error = curl_status_code_to_api_error(completed.code, completed.stderr)
+                if api_error and callbacks.on_error then
+                    callbacks.on_error(api_error)
+                else
+                    local e = vim.fn.printf('command execution failed (%s): %s', (api_error or {}).reason or '', completed.stderr)
+                    error(e)
+                end
             end
         end
     )
@@ -117,7 +176,8 @@ function M.find_all_models(url)
     return models
 end
 
----@return string?
+---@private
+---@return string|nil
 function M.get_sync(url)
     local child = M.get_stream(url)
     local completed = child:wait()

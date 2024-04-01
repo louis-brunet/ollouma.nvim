@@ -226,20 +226,30 @@ function M.generate_to_ui_item(output_item, payload, opts)
     if opts.show_loading_indicator then
         output_item:write_lines({ '<!-- LOADING -->' })
     end
+    local function remove_loading_indicator()
+        if opts.show_loading_indicator then
+            output_item:delete_lines(1)
+        end
+    end
 
     ---@type OlloumaGenerateOptions
     local generate_opts = {
         payload = payload,
         api_url = config.api.generate_url,
         on_response_start = function()
-            if opts.show_loading_indicator then
-                output_item:delete_lines(1)
-            end
+            remove_loading_indicator()
         end,
         on_response = function(partial_response)
             output_item:write(partial_response)
         end,
         on_response_end = opts.on_response_end,
+        on_api_error = function(api_error)
+            remove_loading_indicator()
+            output_item:write_lines({ '<!-- ERROR: ' .. api_error.reason .. ' -->', '' })
+            if api_error.stderr then
+                output_item:write(api_error.stderr)
+            end
+        end
     }
 
     local stop_generation = generate.start_generation(generate_opts)
