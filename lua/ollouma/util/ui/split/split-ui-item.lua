@@ -69,6 +69,21 @@ function SplitUiItem:write_lines(lines)
     require('ollouma.util').buf_append_lines(self.buffer, lines)
 end
 
+---@param count integer
+-- ---@param opts { delete_from_start: boolean|nil }|nil
+function SplitUiItem:delete_lines(count) --, opts)
+    vim.validate({
+        count = { count, { 'number' } },
+    })
+    if self.buffer == nil or count < 1 then
+        return
+    end
+    local lines = vim.api.nvim_buf_get_lines(self.buffer, 0, -1, false)
+    local total_line_count = #lines
+
+    vim.fn.deletebufline(self.buffer, total_line_count - count + 1, total_line_count)
+end
+
 ---@param opts { set_current_window: boolean|nil }|nil
 function SplitUiItem:open(opts)
     local log = require('ollouma.util.log')

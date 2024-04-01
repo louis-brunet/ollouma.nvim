@@ -47,6 +47,75 @@
 ---@field user_command_subcommands table<string, OlloumaSubcommand>|nil
 ---@field log_level integer|nil :h vim.log.levels
 
+---@class OlloumaGenerateInteractivePrompt
+---@field action_name string
+---@field payload_generator fun(model: string, prompt: string[], model_action_opts: OlloumaModelActionOptions):OlloumaGenerateRequestPayload
+---@field require_selection boolean|nil
+---@field show_prompt_in_output boolean|nil
+
+---@class OlloumaGenerateOutputOnlyPrompt
+---@field action_name string
+---@field payload_generator fun(model: string, model_action_opts: OlloumaModelActionOptions):OlloumaGenerateRequestPayload
+---@field require_selection boolean|nil
+---@field show_prompt_in_output boolean|nil
+
+local default_prompts = {
+    generate = {
+        ---@type OlloumaGenerateInteractivePrompt[]
+        interactive = {
+            {
+                action_name = 'Generate',
+                payload_generator = function(model, prompt, _)
+                    ---@type OlloumaGenerateRequestPayload
+                    return {
+                        model = model,
+                        prompt = table.concat(prompt, '\n'),
+                        -- system = 'Respond only with valid JSON.',
+                        -- format = 'json',
+                        -- options = {
+                        --     temperature = 0.0,
+                        -- }
+                    }
+                end,
+                require_selection = false,
+                show_prompt_in_output = true,
+            },
+        },
+        ---@type OlloumaGenerateOutputOnlyPrompt[]
+        output_only = {
+            {
+                action_name = 'Review',
+                payload_generator = function(model, model_action_opts)
+                    local filetype_sentence = ''
+                    if model_action_opts.visual_selection then
+                        local filetype = vim.api.nvim_buf_get_option(0, 'ft')
+                        if filetype then
+                            filetype_sentence =
+                                ' My IDE has detected that this file is written in "' ..
+                                filetype .. '".'
+                        end
+                    end
+
+                    ---@type OlloumaGenerateRequestPayload
+                    return {
+                        model = model,
+                        prompt = model_action_opts.visual_selection,
+                        system = 'You are an expert programmer. Please review' ..
+                            'the following code and list possible improvements.' ..
+                            'This code was taken directly from my IDE and is part of a larger codebase.' ..
+                            filetype_sentence,
+                        options = {
+                            temperature = 0,
+                        },
+                    }
+                end,
+                require_selection = true,
+                show_prompt_in_output = false,
+            },
+        }
+    },
+}
+
 
 ---@class OlloumaConfigModule
 ---@field default_config fun(): OlloumaConfig
@@ -72,63 +141,74 @@ function M.default_config()
         },
 
         model_actions = function(model, model_action_opts)
+            local generate_ui = require('ollouma.generate.ui')
             model_action_opts = model_action_opts or {}
-
             ---@type OlloumaModelAction[]
-            local actions = {
-                {
-                    name = 'Generate',
-                    on_select = function()
-                        -- opts = opts or {}
+            local actions = {}
 
-                        require('ollouma.generate.ui').start_interactive_ui(
-                            function(prompt)
-                                ---@type OlloumaGenerateRequestPayload
-                                return {
-                                    model = model,
-                                    prompt = table.concat(prompt, '\n'),
-                                    -- system = 'Respond only with valid JSON.',
-                                    -- format = 'json',
-                                    -- options = {
-                                    --     temperature = 0.0,
-                                    -- }
+            for _, interactive_prompt in ipairs(default_prompts.generate.interactive) do
+                local missing_selection =
+                    model_action_opts.visual_selection == nil and interactive_prompt.require_selection
+
+                if not missing_selection then
+                    ---@type OlloumaModelAction
+                    local new_action = {
+                        name = interactive_prompt.action_name,
+                        on_select = function()
+                            -- opts = opts or {}
+
+                            local title = interactive_prompt.action_name .. ' - ' .. model
+
+                            generate_ui.start_interactive_ui(
+                                function(prompt)
+                                    return interactive_prompt.payload_generator(
+                                        model,
+                                        prompt,
+                                        model_action_opts
+                                    )
+                                end,
+                                {
+                                    title = title,
+                                    initial_prompt = model_action_opts.visual_selection,
+                                    show_prompt_in_output = interactive_prompt.show_prompt_in_output,
                                 }
-                            end,
-                            {
-                                title = 'Generate - ' .. model,
-                                initial_prompt = model_action_opts.visual_selection,
-                                show_prompt_in_output = true,
-                            }
-                        )
-                    end
-                },
-            }
+                            )
+                        end,
+                    }
 
-            if model_action_opts.visual_selection then
-                table.insert(actions, {
-                    name = 'Review',
-                    on_select = function()
-                        -- opts = opts or {}
+                    table.insert(actions, new_action)
+                end
+            end
 
-                        local prompt = model_action_opts.visual_selection
-                        if not prompt then
-                            error('no visual selection, cannot review')
-                        end
+            for _, output_only_prompt in ipairs(default_prompts.generate.output_only) do
+                local missing_selection =
+                    model_action_opts.visual_selection == nil and output_only_prompt.require_selection
 
-                        require('ollouma.generate.ui').start_output_only_ui(
-                            {
-                                model = model,
-                                prompt = prompt,
-                                system = 'You are an expert programmer. Please review the following code and list possible improvements. This code was taken directly from my IDE and is part of a larger codebase.',
-                                options = {
-                                    temperature = 0,
-                                },
-                            },
-                            'Review - ' .. model,
-                            { show_prompt_in_output = false }
-                        )
-                    end
-                })
+                if not missing_selection then
+                    ---@type OlloumaModelAction
+                    local new_action = {
+                        name = output_only_prompt.action_name,
+                        on_select = function()
+                            -- opts = opts or {}
+
+                            local payload = output_only_prompt.payload_generator(
+                                model,
+                                model_action_opts
+                            )
+                            local title = output_only_prompt.action_name .. ' - ' .. model
+
+                            generate_ui.start_output_only_ui(
+                                payload,
+                                title,
+                                {
+                                    show_prompt_in_output = output_only_prompt.show_prompt_in_output,
+                                }
+                            )
+                        end,
+                    }
+
+                    table.insert(actions, new_action)
+                end
             end
 
             return actions

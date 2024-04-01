@@ -98,6 +98,7 @@ function M.start_interactive_ui(payload_generator, opts)
                             generate_request_payload,
                             {
                                 show_prompt_in_output = opts.show_prompt_in_output,
+                                show_loading_indicator = true,
                                 on_response_end = function()
                                     remove_gen_stop_command()
                                     output_item:write_lines({ '<!-------------------->', '' })
@@ -182,6 +183,7 @@ function M.start_output_only_ui(payload, title, opts)
         payload,
         {
             show_prompt_in_output = opts.show_prompt_in_output,
+            show_loading_indicator = true,
             on_response_end = function()
                 remove_gen_stop_command()
             end
@@ -203,6 +205,7 @@ end
 ---@class OlloumaGenerateToUiItemOptions
 ---@field on_response_end nil|fun():nil
 ---@field show_prompt_in_output boolean|nil
+---@field show_loading_indicator boolean|nil
 
 ---@private
 ---@param output_item OlloumaSplitUiItem
@@ -220,10 +223,19 @@ function M.generate_to_ui_item(output_item, payload, opts)
         output_item:write_lines({ '<!------ Output ------>', '' })
     end
 
+    if opts.show_loading_indicator then
+        output_item:write_lines({ '<!-- LOADING -->' })
+    end
+
     ---@type OlloumaGenerateOptions
     local generate_opts = {
         payload = payload,
         api_url = config.api.generate_url,
+        on_response_start = function()
+            if opts.show_loading_indicator then
+                output_item:delete_lines(1)
+            end
+        end,
         on_response = function(partial_response)
             output_item:write(partial_response)
         end,

@@ -20,6 +20,7 @@
 
 ---@class OlloumaGenerateOptions
 ---@field api_url string
+---@field on_response_start nil|fun():nil called when the response stream has started being generated
 ---@field on_response fun(partial_response: string): nil
 ---@field on_response_end nil|fun():nil only called when the response is finished, not when it is prematurely aborted by the user
 ---@field payload OlloumaGenerateRequestPayload
@@ -36,8 +37,9 @@ function M.start_generation(opts)
         prompt = { opts.payload.prompt, { 'string' } },
         system = { opts.payload.system, { 'string', 'nil' } },
         api_url = { opts.api_url, 'string' },
+        on_response_start = { opts.on_response_start, { 'function', 'nil' } },
         on_response = { opts.on_response, 'function' },
-        on_response_end = { opts.on_response_end, 'function' },
+        on_response_end = { opts.on_response_end, { 'function', 'nil' } },
     })
 
     local api = require('ollouma.util.api-client')
@@ -46,7 +48,7 @@ function M.start_generation(opts)
         opts.payload.options = nil
     end
     -- local log = require('ollouma.util.log')
-    -- local prompt = opts.prompt
+    -- local prompt = opts.payload.prompt
     --
     -- if not prompt or #prompt == 0 then
     --     prompt = vim.fn.input({ prompt = 'Prompt [' .. opts.model .. ']: ', text = "n" })
@@ -57,6 +59,7 @@ function M.start_generation(opts)
     --     end
     -- end
 
+    local is_first_response_chunk = true
     local api_stop_generation = api.stream_response(
         opts.api_url,
 
@@ -64,6 +67,13 @@ function M.start_generation(opts)
 
         ---@param response OlloumaGenerateResponseChunkDto
         function(response)
+            if is_first_response_chunk then
+                if opts.on_response_start then
+                    vim.schedule(opts.on_response_start)
+                end
+                is_first_response_chunk = false
+            end
+
             if response.done then
                 if opts.on_response_end then
                     vim.schedule(opts.on_response_end)
