@@ -109,7 +109,7 @@ local default_prompts = {
 
         output_only = {
             {
-                action_name = 'Review code (visual)',
+                action_name = 'Review code (visual mode)',
                 payload_generator = function(model, model_action_opts)
                     local filetype_sentence = ''
 
