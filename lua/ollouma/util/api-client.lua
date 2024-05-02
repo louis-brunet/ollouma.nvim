@@ -76,7 +76,7 @@ end
 
 
 -- vim.system added in neovim 0.10 (nightly as of writing this)
-local system = vim.system or require('ollouma.util.system')
+local system = vim.system or require('ollouma.util.system').run
 
 ---@param response_body JsonData
 ---@return OlloumaResponseChunkDto
@@ -197,7 +197,7 @@ end
 ---@param on_exit? fun(out: vim.SystemCompleted): nil
 function M.get_stream(url, on_stdout, on_exit)
     local ok, res = pcall(
-        system.run,
+        system,
         { 'curl', '--no-buffer', '-X', 'GET', url },
         { text = true, stdout = on_stdout },
         on_exit
@@ -221,7 +221,7 @@ function M.post_stream(url, json_body, on_stdout, on_exit)
     log.trace('POST ' .. url .. '\n' .. json_encoded_body)
 
     local ok, res = pcall(
-        system.run,
+        system,
         {
             'curl',
             '--no-buffer',
