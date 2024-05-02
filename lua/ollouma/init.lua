@@ -16,11 +16,12 @@ function M.setup(partial_config)
     vim.api.nvim_create_user_command('Ollouma',
         function(cmd_opts)
             local arg = cmd_opts.fargs[1]
+            local buf_get_option = require('ollouma.util.polyfill.options').buf_get_option
 
             ---@type OlloumaModelActionOptions
             local model_action_opts = {
                 visual_selection = nil,
-                filetype = vim.api.nvim_buf_get_option(0, 'ft')
+                filetype = buf_get_option('ft')
             }
             if cmd_opts.range == 2 then
                 -- NOTE: the actual position expressions seem to not be

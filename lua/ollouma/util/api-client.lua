@@ -1,7 +1,20 @@
----@class OlloumaChatMessageDto
----@field role string
----@field content string
----@field images? string
+-- ---@class OlloumaChatMessageDto
+-- ---@field role string
+-- ---@field content string
+-- ---@field images? string
+
+--- Full list: https://github.com/ollama/ollama/blob/main/docs/modelfile.md#valid-parameters-and-values
+--- (permalink as of writing this: https://github.com/ollama/ollama/blob/e1f1c374ea3033d55e4975fbb60a5873f716b8ba/docs/modelfile.md#valid-parameters-and-values)
+---@class OlloumaRequestOptionsDto
+---@field num_ctx integer|nil Sets the size of the context window used to generate the next token. (Default: 2048)
+---@field num_predict integer|nil Maximum number of tokens to predict when generating text. (Default: 128, -1 = infinite generation, -2 = fill context)
+---@field repeat_penalty float|nil Sets how strongly to penalize repetitions. A higher value (e.g., 1.5) will penalize repetitions more strongly, while a lower value (e.g., 0.9) will be more lenient. (Default: 1.1)
+---@field seed integer|nil Sets the random number seed to use for generation. Setting this to a specific number will make the model generate the same text for the same prompt. (Default: 0)
+---@field temperature float|nil The temperature of the model. Increasing the temperature will make the model answer more creatively. (Default: 0.8)
+---@field tfs_z float|nil Tail free sampling is used to reduce the impact of less probable tokens from the output. A higher value (e.g., 2.0) will reduce the impact more, while a value of 1.0 disables this setting. (default: 1)
+---@field top_k int|nil Reduces the probability of generating nonsense. A higher value (e.g. 100) will give more diverse answers, while a lower value (e.g. 10) will be more conservative. (Default: 40)
+---@field top_p float|nil Works together with top-k. A higher value (e.g., 0.95) will lead to more diverse text, while a lower value (e.g., 0.5) will generate more focused and conservative text. (Default: 0.9)
+
 
 ---@class OlloumaResponseChunkDto
 ---@field model string
@@ -76,7 +89,7 @@ end
 
 
 -- vim.system added in neovim 0.10 (nightly as of writing this)
-local system = vim.system or require('ollouma.util.system').run
+local system = vim.system or require('ollouma.util.polyfill.system').run
 
 ---@param response_body JsonData
 ---@return OlloumaResponseChunkDto
@@ -97,7 +110,6 @@ local M = {}
 ---@param url string
 ---@param json_body JsonData
 ---@param callbacks OlloumaApiStreamCallbacks|nil
--- ---@param on_response_chunk? fun(response: OlloumaResponseChunkDto): nil
 function M.stream_response(url, json_body, callbacks)
     callbacks = callbacks or {}
     vim.validate({
@@ -125,7 +137,7 @@ function M.stream_response(url, json_body, callbacks)
 
             local validated = validate_response_dto(decoded_json)
 
-            callbacks.on_response_chunk(validated)
+            vim.schedule(function() callbacks.on_response_chunk(validated) end)
         end,
         function(completed)
             -- TODO: cleanup here ?
@@ -133,7 +145,7 @@ function M.stream_response(url, json_body, callbacks)
             if completed.code ~= 0 then
                 local api_error = curl_status_code_to_api_error(completed.code, completed.stderr)
                 if api_error and callbacks.on_error then
-                    callbacks.on_error(api_error)
+                    vim.schedule(function() callbacks.on_error(api_error) end)
                 else
                     local e = vim.fn.printf('command execution failed (%s): %s', (api_error or {}).reason or '', completed.stderr)
                     error(e)

@@ -147,9 +147,11 @@ local default_prompts = {
 local M = {}
 
 function M.default_config()
+    local default_base_url = '127.0.0.1:11434'
+
     ---@type OlloumaConfig
     return {
-        log_level = vim.log.levels.INFO,
+        log_level = vim.log.levels.TRACE,
 
         model = nil,
 
@@ -159,9 +161,9 @@ function M.default_config()
         -- },
 
         api = {
-            generate_url = '127.0.0.1:11434/api/generate',
-            chat_url = '127.0.0.1:11434/api/chat',
-            models_url = '127.0.0.1:11434/api/tags',
+            generate_url = default_base_url .. '/api/generate',
+            chat_url = default_base_url .. '/api/chat',
+            models_url = default_base_url .. '/api/tags',
         },
 
         prompts = default_prompts,
@@ -171,7 +173,16 @@ function M.default_config()
             local prompts = require('ollouma').config.prompts
             local model_actions = require('ollouma.config.model-action')
 
-            return model_actions.from_prompt_config(prompts, model, model_action_opts)
+            return {
+                ---@type OlloumaModelAction
+                {
+                    name = 'Chat',
+                    on_select = function ()
+                        require('ollouma.chat.ui').start_chat_ui({ model = model, title = 'chat - ' .. model })
+                    end
+                },
+                unpack(model_actions.from_prompt_config(prompts, model, model_action_opts)),
+            }
         end,
 
         user_command_subcommands = {

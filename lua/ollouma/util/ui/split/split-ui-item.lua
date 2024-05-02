@@ -83,6 +83,7 @@ end
 ---@param opts { set_current_window: boolean|nil }|nil
 function SplitUiItem:open(opts)
     local log = require('ollouma.util.log')
+    local buf_set_option = require('ollouma.util.polyfill.options').buf_set_option
     local OlloumaSplitKind = require('ollouma.util.ui').OlloumaSplitKind
     local current_window = vim.api.nvim_get_current_win()
     opts = opts or {}
@@ -156,7 +157,7 @@ function SplitUiItem:open(opts)
 
     -- for some reason this needs to be after the window initialization or
     -- ftplugin configs don't work
-    vim.api.nvim_buf_set_option(self.buffer, 'ft', 'markdown')
+    buf_set_option('ft', 'markdown', self.buffer)
 
     if opts.set_current_window then
         ---@type integer

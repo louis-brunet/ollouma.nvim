@@ -130,12 +130,12 @@ function SplitUi:destroy_buffers()
 end
 
 function SplitUi:exit()
-    self:close_windows()
-    self:destroy_buffers()
-
     if self.on_exit then
         self:on_exit()
     end
+
+    self:close_windows()
+    self:destroy_buffers()
 end
 
 return SplitUi

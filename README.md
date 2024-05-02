@@ -17,8 +17,9 @@
         dependencies = {},
 
         ---@type OlloumaPartialConfig
-        opts = {}, -- see [Setup](#setup)
+        opts = {}, -- see Setup below
 
+        ---@param opts OlloumaPartialConfig
         -- config = function(_, opts)
         --     local ollouma = require('ollouma')
         --
