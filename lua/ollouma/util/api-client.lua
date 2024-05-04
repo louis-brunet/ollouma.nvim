@@ -30,11 +30,11 @@
 ---@enum OlloumaApiErrorReason
 local OlloumaApiErrorReason = {
     -- cURL errors
-    UNSUPPORTED_PROTOCOL = 'protocol',
-    URL_MALFORMED = 'url',
+    UNSUPPORTED_PROTOCOL = 'unsupported_protocol',
+    URL_MALFORMED = 'url_malformed',
     RESOLVE_PROXY = 'resolve_proxy',
     RESOLVE_HOST = 'resolve_host',
-    CONNECTION_FAILED = 'connection',
+    CONNECTION_FAILED = 'connection_failed',
     PARSE_HTTP = 'parse_http',
 
     -- App errors
@@ -105,7 +105,9 @@ end
 
 
 ---@class OlloumaApiClient
-local M = {}
+local M = {
+    OlloumaApiErrorReason = OlloumaApiErrorReason,
+}
 
 ---@param url string
 ---@param json_body JsonData

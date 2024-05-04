@@ -44,8 +44,10 @@ end
 
 ---@class OlloumaSplitUiCreateItemOptions
 ---@field display_name string|nil
+---@field filetype string|nil
 ---@field buffer_commands OlloumaSplitUiBufferCommand[]|nil
 ---@field buffer_keymaps OlloumaSplitUiBufferKeymap[]|nil
+---@field split_size float|nil
 
 ---@param item_id string
 ---@param split_kind OlloumaSplitKind
@@ -68,7 +70,12 @@ function SplitUi:create_ui_item(item_id, split_kind, opts)
     local ui_item = SplitUiItem:new(
         opts.display_name or item_id,
         split_kind,
-        { buffer_commands = opts.buffer_commands, buffer_keymaps = opts.buffer_keymaps }
+        {
+            buffer_commands = opts.buffer_commands,
+            buffer_keymaps = opts.buffer_keymaps,
+            filetype = opts.filetype,
+            split_size = opts.split_size,
+        }
     )
     self.ui_items[item_id] = ui_item
     return ui_item

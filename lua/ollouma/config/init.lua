@@ -177,8 +177,13 @@ function M.default_config()
                 ---@type OlloumaModelAction
                 {
                     name = 'Chat',
-                    on_select = function ()
-                        require('ollouma.chat.ui').start_chat_ui({ model = model, title = 'chat - ' .. model })
+                    on_select = function()
+                        require('ollouma.chat.ui').start_chat_ui(
+                            {
+                                model = model,
+                                system_prompt = 'You are an AI assistant integrated in Neovim via the plugin ollouma.nvim developed by Louis Brunet.',
+                            }
+                        )
                     end
                 },
                 unpack(model_actions.from_prompt_config(prompts, model, model_action_opts)),

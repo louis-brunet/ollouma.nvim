@@ -17,6 +17,13 @@ function M.is_function(value)
 end
 
 ---@param buffer integer
+---@return integer col
+function M.buf_last_line_end_index(buffer)
+    local last_line = vim.api.nvim_buf_get_lines(buffer, -2, -1, false)[1]
+    return #last_line
+end
+
+---@param buffer integer
 ---@param lines string[]
 function M.buf_append_lines(buffer, lines)
     vim.api.nvim_buf_set_lines(buffer, -1, -1, false, lines)

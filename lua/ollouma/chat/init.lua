@@ -5,19 +5,19 @@
 
 ---@class OlloumaChatRequestDto
 ---@field model string
----@field messages OlloumaChatMessage[]
+---@field messages OlloumaChatMessageDto[]
 ---@field format 'json'|nil
 ---@field keep_alive string|nil default is 5m
 ---@field options OlloumaRequestOptionsDto|nil
 ---@field stream boolean|nil
 
 ---@class OlloumaChatSendOptions
+---@field payload OlloumaChatRequestDto
 ---@field api_url string|nil
 ---@field on_api_error nil|fun(api_error: OlloumaApiError): nil
 ---@field on_message_chunk nil|fun(message_chunk: OlloumaChatMessageDto): nil
 ---@field on_message_end nil|fun(response: OlloumaChatResponseChunkDto): nil
 ---@field on_message_start nil|fun(response: OlloumaChatResponseChunkDto): nil
----@field payload OlloumaChatRequestDto
 
 
 ---@class OlloumaChatModule

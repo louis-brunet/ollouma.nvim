@@ -3,16 +3,20 @@
 ---@class OlloumaSplitUiItem
 ---@field display_name string
 ---@field split_kind OlloumaSplitKind
+---@field split_size float
 ---@field buffer integer|nil
 ---@field window integer|nil
 ---@field buffer_commands OlloumaSplitUiBufferCommand[]
 ---@field buffer_keymaps OlloumaSplitUiBufferKeymap[]
+---@field filetype string
 local SplitUiItem = {}
 SplitUiItem.__index = SplitUiItem
 
 ---@class OlloumaSplitUiItemConstructorOptions
 ---@field buffer_commands OlloumaSplitUiBufferCommand[]|nil
 ---@field buffer_keymaps OlloumaSplitUiBufferKeymap[]|nil
+---@field filetype string|nil
+---@field split_size float|nil
 
 ---@param display_name string
 ---@param split_kind OlloumaSplitKind
@@ -23,7 +27,17 @@ function SplitUiItem:new(display_name, split_kind, opts)
     vim.validate({
         display_name = { display_name, { 'string' } },
         split_kind = { split_kind, { 'string' } },
+        filetype = { opts.filetype, { 'string', 'nil' } },
+        buffer_commands = { opts.buffer_commands, { 'table', 'nil' } },
+        buffer_keymaps = { opts.buffer_keymaps, { 'table', 'nil' } },
+        split_size = { opts.split_size, { 'number', 'nil' } },
     })
+
+    local log = require('ollouma.util.log')
+    if opts.split_size ~= nil and (opts.split_size <= 0 or opts.split_size >= 1) then
+        log.error('[SplitUiItem:new] opts.split_size should be between 0.0 and 1.0 exclusive')
+        error('invalid split_size')
+    end
     -- local util = require('ollouma.util')
     -- local OlloumaSplitKind = require('ollouma.util.ui').OlloumaSplitKind
     -- util.validate_enum(split_kind, vim.tbl_values(OlloumaSplitKind), 'split_kind')
@@ -34,6 +48,8 @@ function SplitUiItem:new(display_name, split_kind, opts)
         split_kind = split_kind,
         buffer_commands = opts.buffer_commands or {},
         buffer_keymaps = opts.buffer_keymaps or {},
+        filetype = opts.filetype or 'markdown',
+        split_size = opts.split_size or 0.5,
     }
 
     return setmetatable(split_ui_item, self)
@@ -53,20 +69,110 @@ function SplitUiItem:get_lines()
     return vim.api.nvim_buf_get_lines(self.buffer, 0, -1, false)
 end
 
+
+-- ----@param str string
+-- -function SplitUi:ouput_write(str)
+-- -    local util = require('ollouma.util')
+-- -
+-- -    util.buf_append_string(self.output.buffer, str)
+-- -
+-- -    -- TODO: conditionally disable auto scrolling
+-- -
+-- -    if not self.output.window or not vim.api.nvim_win_is_valid(self.output.window) then
+-- -        return
+-- -    end
+-- -
+-- -    -- if cursor is on second to last line, then
+-- -    -- move it to the last line
+-- -    local output_cursor = vim.api.nvim_win_get_cursor(self.output.window)
+-- -    local last_line_idx = vim.api.nvim_buf_line_count(self.output.buffer)
+-- -
+-- -    if output_cursor[1] == last_line_idx - 1 then
+-- -        local last_line = vim.api.nvim_buf_get_lines(
+-- -            self.output.buffer,
+-- -            -2, -1, false
+-- -        )
+-- -        local last_column_idx = math.max(0, #last_line - 1)
+-- -
+-- -        vim.api.nvim_win_set_cursor(
+-- -            self.output.window,
+-- -            { last_line_idx, last_column_idx }
+-- -        )
+-- -    end
+-- -end
+--
+
 ---@param new_text string
-function SplitUiItem:write(new_text)
+---@param opts { hl_group: string|number|nil, hl_eol: boolean|nil }|nil
+function SplitUiItem:write(new_text, opts)
     if self.buffer == nil then
         return
     end
-    require('ollouma.util').buf_append_string(self.buffer, new_text)
+    opts = opts or {}
+    local util = require('ollouma.util')
+
+    local last_line_idx_before = vim.api.nvim_buf_line_count(self.buffer) - 1
+    local is_highlight_group = not not opts.hl_group
+    local extmark_line = last_line_idx_before
+    local extmark_col
+
+    if is_highlight_group then
+        extmark_col = util.buf_last_line_end_index(self.buffer)
+    end
+
+    local win_cursor_before = vim.api.nvim_win_get_cursor(self.window)
+    local was_on_last_line = win_cursor_before[1] - 1 == last_line_idx_before
+
+    util.buf_append_string(self.buffer, new_text)
+    local end_col_idx = util.buf_last_line_end_index(self.buffer)
+    local end_row_idx = vim.api.nvim_buf_line_count(self.buffer) - 1
+    if is_highlight_group then
+        self:set_extmark(extmark_line, extmark_col, {
+            end_col = end_col_idx,
+            end_row = end_row_idx,
+            hl_eol = opts.hl_eol,
+            hl_group = opts.hl_group,
+        })
+    end
+
+    if not self.window or not vim.api.nvim_win_is_valid(self.window) then
+        return
+    end
+
+    -- -- if cursor is on second to last line, then
+    -- -- move it to the last line
+    -- local win_cursor = vim.api.nvim_win_get_cursor(self.window)
+
+    -- if win_cursor[1] == last_line_idx - 1 then
+    if was_on_last_line then
+        -- local last_line_idx = vim.api.nvim_buf_line_count(self.buffer)
+        -- local last_line = vim.api.nvim_buf_get_lines(
+        --     self.buffer,
+        --            -2, -1, false
+        -- )[1]
+        -- local last_column_idx = math.max(0, #last_line - 1)
+
+        vim.api.nvim_win_set_cursor(
+            self.window,
+            { end_row_idx + 1, end_col_idx }
+        )
+    end
 end
 
 ---@param lines string[]
-function SplitUiItem:write_lines(lines)
+---@param opts { disable_first_newline: boolean|nil }|nil
+function SplitUiItem:write_lines(lines, opts)
     if self.buffer == nil then
         return
     end
-    require('ollouma.util').buf_append_lines(self.buffer, lines)
+    opts = opts or {}
+    local util = require('ollouma.util')
+    if opts.disable_first_newline and lines[1] then
+        util.buf_append_string(self.buffer, lines[1])
+        table.remove(lines, 1)
+    end
+
+    util.buf_append_lines(self.buffer, lines)
 end
 
 ---@param num_lines_to_delete integer
@@ -83,7 +189,8 @@ end
 ---@param opts { set_current_window: boolean|nil }|nil
 function SplitUiItem:open(opts)
     local log = require('ollouma.util.log')
-    local buf_set_option = require('ollouma.util.polyfill.options').buf_set_option
+    local ui_utils = require('ollouma.util.ui')
+    local option_polyfills = require('ollouma.util.polyfill.options')
     local OlloumaSplitKind = require('ollouma.util.ui').OlloumaSplitKind
     local current_window = vim.api.nvim_get_current_win()
     opts = opts or {}
@@ -117,20 +224,28 @@ function SplitUiItem:open(opts)
     end
 
     if not self:is_window_valid() then
+        local container_width = vim.api.nvim_win_get_width(0)
+        local container_height = vim.api.nvim_win_get_height(0)
+
         if self.split_kind == OlloumaSplitKind.LEFT then
             vim.cmd 'vsplit'
+            vim.api.nvim_win_set_width(0, math.ceil(container_width * self.split_size))
         elseif self.split_kind == OlloumaSplitKind.RIGHT then
             vim.cmd 'vsplit +wincmd\\ x|wincmd\\ l'
+            vim.api.nvim_win_set_width(0, math.ceil(container_width * self.split_size))
         elseif self.split_kind == OlloumaSplitKind.TOP then
             vim.cmd 'split'
+            vim.api.nvim_win_set_height(0, math.ceil(container_height * self.split_size))
         elseif self.split_kind == OlloumaSplitKind.BOTTOM then
             vim.cmd 'split +wincmd\\ x|wincmd\\ j'
+            vim.api.nvim_win_set_height(0, math.ceil(container_height * self.split_size))
         else
             error('invalid prompt_split value: ' .. vim.inspect(self.split_kind))
         end
 
         self.window = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(self.window, self.buffer)
+        vim.api.nvim_win_set_hl_ns(self.window, ui_utils.namespace_id)
 
         -- if opts.winbar_items and #opts.winbar_items ~= 0 then
         --     local winbar_str = ''
@@ -155,9 +270,12 @@ function SplitUiItem:open(opts)
         -- })
     end
 
-    -- for some reason this needs to be after the window initialization or
-    -- ftplugin configs don't work
-    buf_set_option('ft', 'markdown', self.buffer)
+    -- for some reason the filetype options needs to be set after the window
+    -- initialization or ftplugin configs don't work
+    option_polyfills.buf_set_option('bufhidden', 'hide', { buf = self.buffer })
+    option_polyfills.buf_set_option('buftype', 'nofile', { buf = self.buffer })
+    option_polyfills.buf_set_option('filetype', self.filetype, { buf = self.buffer })
+    option_polyfills.win_set_option('wrap', true, { win = self.window })
 
     if opts.set_current_window then
         ---@type integer
@@ -173,6 +291,40 @@ function SplitUiItem:close_window(force)
     end
 
     self.window = nil
+end
+
+---@class OlloumaSplitUiItemSetExtmarkOptions
+---@field id integer|nil id of the extmark to edit
+---@field hl_group string|number|nil
+---@field end_row integer|nil ending line of the mark, 0-based inclusive.ending line of the mark, 0-based inclusive.
+---@field end_col integer|nil ending col of the mark, 0-based inclusive.
+---@field hl_eol boolean|nil
+
+---@param line integer Line where to place the mark, 0-based. :h api-indexing
+---@param col integer Column where to place the mark, 0-based. :h api-indexing
+---@param opts OlloumaSplitUiItemSetExtmarkOptions|nil
+---@return integer extmark_id id of the created/updated extmark
+function SplitUiItem:set_extmark(line, col, opts)
+    opts = opts or {}
+
+    local namespace_id = require('ollouma.util.ui').namespace_id
+
+    ---@type vim.api.keyset.set_extmark
+    local vim_set_extmark_opts = {
+        end_col = opts.end_col,
+        end_row = opts.end_row,
+        hl_group = opts.hl_group,
+        hl_eol = opts.hl_eol,
+        id = opts.id,
+    }
+
+    return vim.api.nvim_buf_set_extmark(
+        self.buffer,
+        namespace_id,
+        line,
+        col,
+        vim_set_extmark_opts
+    )
 end
 
 return SplitUiItem

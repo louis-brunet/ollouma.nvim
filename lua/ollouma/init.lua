@@ -5,6 +5,7 @@ local M = {}
 ---@param partial_config? OlloumaPartialConfig
 function M.setup(partial_config)
     local log = require('ollouma.util.log')
+    local ui_utils = require('ollouma.util.ui')
     local Config = require('ollouma.config')
 
     M.config = Config.extend_config(M.config, partial_config)
@@ -12,6 +13,31 @@ function M.setup(partial_config)
     local subcommands = M.config.user_command_subcommands or {}
     ---@type string[]
     local subcommand_names = vim.tbl_keys(subcommands)
+
+    -- vim.cmd.highlight('link ' .. ui_utils.highlight_groups.chat.role .. ' Title')
+    local title_highlight = vim.api.nvim_get_hl(
+        0,
+        { name = 'Title', link = false, }
+    )
+    local cursor_column_highlight = vim.api.nvim_get_hl(
+        0,
+        { name = 'CursorLine', link = false, }
+    )
+    ---@type vim.api.keyset.highlight
+    local role_highlight = {
+        link = title_highlight.link,
+        fg = title_highlight.fg,
+        bg = cursor_column_highlight.bg,
+        bold = title_highlight.bold,
+        cterm = title_highlight.cterm,
+        sp = title_highlight.sp,
+    }
+
+    vim.api.nvim_set_hl(
+        ui_utils.namespace_id,
+        ui_utils.highlight_groups.chat.role,
+        role_highlight
+    )
 
     vim.api.nvim_create_user_command('Ollouma',
         function(cmd_opts)
@@ -80,16 +106,6 @@ function M.setup(partial_config)
     )
 end
 
--- ---@param model? string
--- ---@param system_prompt? string
--- function M.chat(model, system_prompt)
---     local Chat = require('ollouma.chat')
---     Chat.start({
---         model = model or M.config.chat.model,
---         system_prompt = system_prompt or M.config.chat.system_prompt,
---     })
--- end
-
 ---@param model string
 ---@param model_action_opts OlloumaModelActionOptions|nil
 function M.select_model_action(model, model_action_opts)
@@ -145,93 +161,24 @@ function M.start(model_action_opts)
     end)
 end
 
--- TODO: refactor session handling (name formatting; selection?; in generate module ?)
 function M.resume_session()
-    local log = require('ollouma.util.log')
-    local opened_gen_uis = require('ollouma.generate.ui').list_opened_uis()
-
-    if not opened_gen_uis or #opened_gen_uis == 0 then
-        log.warn('no open sessions, aborting')
-        return
-    end
-
-    vim.ui.select(
-        opened_gen_uis,
-
-        {
-            prompt = 'Resume session',
-            ---@param item OlloumaGenerateOpenedUi
-            ---@return string
-            format_item = function(item)
-                return vim.fn.printf('%s (%s)', item.metadata.title, os.date(nil, item.metadata.created_at))
-            end
-        },
-
-        ---@param item OlloumaGenerateOpenedUi
-        ---@param _ integer index
-        function(item, _)
-            if not item then
-                log.debug('no session selected, aborting')
-                return
-            end
-
-            item.ui:resume_session()
+    require('ollouma.session-store').select_session(
+        'Resume session',
+        function(split_ui, _)
+            split_ui:resume_session()
         end
     )
 end
 
--- TODO: refactor session handling (name formatting; selection?; in generate module ?)
 function M.exit_session()
-    local log = require('ollouma.util.log')
-    local OPTION_ALL = 'all'
-    local opened_gen_uis = require('ollouma.generate.ui').list_opened_uis()
-
-    if not opened_gen_uis or #opened_gen_uis == 0 then
-        log.warn('no open sessions, aborting')
-        return
-    end
-
-    local options = {}
-    if #opened_gen_uis > 1 then
-        table.insert(options, OPTION_ALL)
-    end
-    for _, gen_ui_option in ipairs(opened_gen_uis) do
-        table.insert(options, gen_ui_option)
-    end
-
-    vim.ui.select(
-        options,
-
+    require('ollouma.session-store').select_session(
+        'Exit session',
+        function(split_ui, _)
+            split_ui:exit()
+        end,
         {
-            prompt = 'Exit session',
-            ---@param item OlloumaGenerateOpenedUi|"all"
-            ---@return string
-            format_item = function(item)
-                if item == OPTION_ALL then
-                    ---@type string
-                    return item
-                end
-
-                return vim.fn.printf('%s (%s)', item.metadata.title, os.date(nil, item.metadata.created_at))
-            end
-        },
-
-        ---@param item OlloumaGenerateOpenedUi|"all"
-        ---@param _ integer index
-        function(item, _)
-            if not item then
-                log.debug('no session selected, aborting')
-                return
-            end
-
-            if item == OPTION_ALL then
-                for _, opened_ui in ipairs(opened_gen_uis) do
-                    opened_ui.ui:exit()
-                end
-            else
-                item.ui:exit()
-            end
-        end
+            add_all_option = true,
+        }
     )
 end
 

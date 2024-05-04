@@ -1,34 +1,8 @@
----@class OlloumaGenerateOpenedUiMetadata
----@field title string
----@field created_at integer
-
----@class OlloumaGenerateOpenedUi
----@field ui OlloumaSplitUi
----@field metadata OlloumaGenerateOpenedUiMetadata
+---@type OlloumaSplitKind
+local DEFAULT_PROMPT_SPLIT = require('ollouma.util.ui').OlloumaSplitKind.RIGHT
 
 ---@class OlloumaGenerateUi
----@field opened_uis table<OlloumaSplitUi,  OlloumaGenerateOpenedUiMetadata>
-local M = {
-    opened_uis = {}
-}
-
----@return OlloumaGenerateOpenedUi[]
-function M.list_opened_uis()
-    ---@type OlloumaGenerateOpenedUi[]
-    local opened_list = {}
-
-    for split_ui, metadata in pairs(M.opened_uis) do
-        table.insert(
-            opened_list,
-            {
-                ui = split_ui,
-                metadata = metadata
-            }
-        )
-    end
-
-    return opened_list
-end
+local M = {}
 
 ---@class OlloumaGenerateInteractiveUiOptions
 ---@field title string
@@ -45,6 +19,7 @@ function M.start_interactive_ui(payload_generator, opts)
         initial_prompt = { opts.initial_prompt, { 'string', 'nil' } },
     })
 
+    local session_store = require('ollouma.session-store')
     local ui_utils = require('ollouma.util.ui')
     local util = require('ollouma.util')
     local interactive_ui_item_ids = {
@@ -60,16 +35,17 @@ function M.start_interactive_ui(payload_generator, opts)
             output_item:open()
         end,
         on_exit = function(split_ui)
-            M.opened_uis[split_ui] = nil
+            session_store.remove_session(split_ui)
         end,
     })
-    M.opened_uis[split_ui] = {
+    session_store.add_session(split_ui, {
         title = opts.title,
         created_at = os.time()
-    }
+    })
+
     local prompt_item = split_ui:create_ui_item(
         interactive_ui_item_ids.PROMPT,
-        ui_utils.OlloumaSplitKind.LEFT,
+        DEFAULT_PROMPT_SPLIT,
         {
             display_name = 'PROMPT [' .. opts.title .. ']',
             buffer_commands = {
@@ -156,18 +132,23 @@ function M.start_output_only_ui(payload, title, opts)
         title = { title, { 'string' } },
     })
 
+    local session_store = require('ollouma.session')
     local ui_utils = require('ollouma.util.ui')
     local output_only_ui_item_ids = { OUTPUT = 'output' }
     local split_ui = ui_utils.OlloumaSplitUi:new({
         on_exit = function(split_ui)
-            M.opened_uis[split_ui] = nil
+            session_store.remove_session(split_ui)
         end,
     })
-    M.opened_uis[split_ui] = { title = title, created_at = os.time() }
+    session_store.add_session(split_ui, {
+        title = title,
+        created_at = os.time()
+    })
+
 
     local output_item = split_ui:create_ui_item(
         output_only_ui_item_ids.OUTPUT,
-        ui_utils.OlloumaSplitKind.LEFT,
+        DEFAULT_PROMPT_SPLIT,
         { display_name = 'OUTPUT [' .. title .. ']' }
     )
     output_item:open()
