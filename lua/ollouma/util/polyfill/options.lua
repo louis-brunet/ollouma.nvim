@@ -18,7 +18,7 @@ end
 -- FIXME: 0.10 remove this polyfill
 --
 ---@param option_name string
----@param option_value string
+---@param option_value string|boolean
 ---@param opts { buf: integer|nil }
 ---@return any
 function M.buf_set_option(option_name, option_value, opts)

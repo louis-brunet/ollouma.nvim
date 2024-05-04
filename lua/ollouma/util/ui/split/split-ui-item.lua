@@ -1,21 +1,23 @@
--- SplitUiItem
-
 ---@class OlloumaSplitUiItem
 ---@field display_name string
 ---@field split_kind OlloumaSplitKind
 ---@field split_size float
 ---@field buffer integer|nil
 ---@field window integer|nil
+---@field buffer_autocommands OlloumaSplitUiBufferAutocommand[]
 ---@field buffer_commands OlloumaSplitUiBufferCommand[]
 ---@field buffer_keymaps OlloumaSplitUiBufferKeymap[]
 ---@field filetype string
+---@field buftype string
 local SplitUiItem = {}
 SplitUiItem.__index = SplitUiItem
 
 ---@class OlloumaSplitUiItemConstructorOptions
+---@field buffer_autocommands OlloumaSplitUiBufferAutocommand[]|nil
 ---@field buffer_commands OlloumaSplitUiBufferCommand[]|nil
 ---@field buffer_keymaps OlloumaSplitUiBufferKeymap[]|nil
 ---@field filetype string|nil
+---@field buftype string|nil
 ---@field split_size float|nil
 
 ---@param display_name string
@@ -28,9 +30,11 @@ function SplitUiItem:new(display_name, split_kind, opts)
         display_name = { display_name, { 'string' } },
         split_kind = { split_kind, { 'string' } },
         filetype = { opts.filetype, { 'string', 'nil' } },
+        buffer_autocommands = { opts.buffer_autocommands, { 'table', 'nil' } },
         buffer_commands = { opts.buffer_commands, { 'table', 'nil' } },
         buffer_keymaps = { opts.buffer_keymaps, { 'table', 'nil' } },
         split_size = { opts.split_size, { 'number', 'nil' } },
+        buftype = { opts.buftype, { 'string', 'nil' } },
     })
 
     local log = require('ollouma.util.log')
@@ -46,10 +50,12 @@ function SplitUiItem:new(display_name, split_kind, opts)
     local split_ui_item = {
         display_name = display_name,
         split_kind = split_kind,
+        buffer_autocommands = opts.buffer_autocommands or {},
         buffer_commands = opts.buffer_commands or {},
         buffer_keymaps = opts.buffer_keymaps or {},
         filetype = opts.filetype or 'markdown',
         split_size = opts.split_size or 0.5,
+        buftype = opts.buftype or 'nofile',
     }
 
     return setmetatable(split_ui_item, self)
@@ -68,39 +74,6 @@ function SplitUiItem:get_lines()
 
     return vim.api.nvim_buf_get_lines(self.buffer, 0, -1, false)
 end
-
-
--- ----@param str string
--- -function SplitUi:ouput_write(str)
--- -    local util = require('ollouma.util')
--- -
--- -    util.buf_append_string(self.output.buffer, str)
--- -
--- -    -- TODO: conditionally disable auto scrolling
--- -
--- -    if not self.output.window or not vim.api.nvim_win_is_valid(self.output.window) then
--- -        return
--- -    end
--- -
--- -    -- if cursor is on second to last line, then
--- -    -- move it to the last line
--- -    local output_cursor = vim.api.nvim_win_get_cursor(self.output.window)
--- -    local last_line_idx = vim.api.nvim_buf_line_count(self.output.buffer)
--- -
--- -    if output_cursor[1] == last_line_idx - 1 then
--- -        local last_line = vim.api.nvim_buf_get_lines(
--- -            self.output.buffer,
--- -            -2, -1, false
--- -        )
--- -        local last_column_idx = math.max(0, #last_line - 1)
--- -
--- -        vim.api.nvim_win_set_cursor(
--- -            self.output.window,
--- -            { last_line_idx, last_column_idx }
--- -        )
--- -    end
--- -end
---
 
 ---@param new_text string
 ---@param opts { hl_group: string|number|nil, hl_eol: boolean|nil }|nil
@@ -186,7 +159,7 @@ function SplitUiItem:delete_lines(num_lines_to_delete)
     vim.api.nvim_buf_set_lines(self.buffer, -1 - num_lines_to_delete, -1, false, {})
 end
 
----@param opts { set_current_window: boolean|nil }|nil
+---@param opts { set_current_window: boolean|nil, on_write: nil|fun():nil }|nil
 function SplitUiItem:open(opts)
     local log = require('ollouma.util.log')
     local ui_utils = require('ollouma.util.ui')
@@ -220,6 +193,23 @@ function SplitUiItem:open(opts)
         for _, command in ipairs(self.buffer_commands) do
             vim.api.nvim_buf_create_user_command(self.buffer, command.command_name, command.rhs, command.opts)
             log.debug('create user command "' .. command.command_name .. '" with opts: ' .. vim.inspect(command.opts))
+        end
+
+        -- SET AUTOCOMMANDS
+        for _, autocommand in ipairs(self.buffer_autocommands) do
+            local autocommand_opts = {
+                buffer = self.buffer,
+                callback = autocommand.callback,
+                once = autocommand.once,
+                nested = autocommand.nested,
+            }
+
+            vim.api.nvim_create_autocmd(
+                autocommand.event,
+                autocommand_opts
+            )
+            log.debug('create buffer autocommand "' ..
+            vim.inspect(autocommand.event) .. '" with opts: ' .. vim.inspect(autocommand_opts))
         end
     end
 
@@ -273,7 +263,7 @@ function SplitUiItem:open(opts)
     -- for some reason the filetype options needs to be set after the window
     -- initialization or ftplugin configs don't work
     option_polyfills.buf_set_option('bufhidden', 'hide', { buf = self.buffer })
-    option_polyfills.buf_set_option('buftype', 'nofile', { buf = self.buffer })
+    option_polyfills.buf_set_option('buftype', self.buftype, { buf = self.buffer })
     option_polyfills.buf_set_option('filetype', self.filetype, { buf = self.buffer })
     option_polyfills.win_set_option('wrap', true, { win = self.window })
 
@@ -324,6 +314,46 @@ function SplitUiItem:set_extmark(line, col, opts)
         line,
         col,
         vim_set_extmark_opts
+    )
+end
+
+function SplitUiItem:lock()
+    local log = require('ollouma.util.log')
+    if not self.buffer then
+        log.error('no buffer, cannot lock')
+        return
+    end
+    local set_option = require('ollouma.util.polyfill.options').buf_set_option
+
+    -- set_option(
+    --     'modifiable',
+    --     false,
+    --     { buf = self.buffer }
+    -- )
+    -- set_option(
+    --     'readonly',
+    --     true,
+    --     { buf = self.buffer }
+    -- )
+end
+
+function SplitUiItem:unlock()
+    local log = require('ollouma.util.log')
+    if not self.buffer then
+        log.error('no buffer, cannot unlock')
+        return
+    end
+    local set_option = require('ollouma.util.polyfill.options').buf_set_option
+
+    set_option(
+        'modifiable',
+        true,
+        { buf = self.buffer }
+    )
+    set_option(
+        'readonly',
+        false,
+        { buf = self.buffer }
     )
 end
 

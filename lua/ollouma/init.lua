@@ -27,6 +27,7 @@ function M.setup(partial_config)
     local role_highlight = {
         link = title_highlight.link,
         fg = title_highlight.fg,
+        -- bg = title_highlight.bg,
         bg = cursor_column_highlight.bg,
         bold = title_highlight.bold,
         cterm = title_highlight.cterm,

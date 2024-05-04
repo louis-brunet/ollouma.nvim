@@ -45,11 +45,20 @@
 ---@field output_only OlloumaGenerateOutputOnlyPrompt[]|nil
 
 
+---@class OlloumaPromptsConfigChat
+---@field system_prompt string
+
+---@class OlloumaPartialPromptsConfigChat
+---@field system_prompt string|nil
+
+
 ---@class OlloumaPromptsConfig
 ---@field generate OlloumaPromptsConfigGenerate
+---@field chat OlloumaPromptsConfigChat
 
 ---@class OlloumaPartialPromptsConfig
 ---@field generate OlloumaPartialPromptsConfigGenerate|nil
+---@field chat OlloumaPartialPromptsConfigChat|nil
 
 
 ---@class OlloumaConfig
@@ -71,74 +80,8 @@
 ---@field log_level integer|nil :h vim.log.levels
 
 
----@type OlloumaPromptsConfig
-local default_prompts = {
-    generate = {
-        interactive = {
-            {
-                action_name = 'Generate',
-                payload_generator = function(model, prompt, _)
-                    ---@type OlloumaGenerateRequestPayload
-                    return {
-                        model = model,
-                        prompt = table.concat(prompt, '\n'),
-                    }
-                end,
-                -- require_selection = false,
-                show_prompt_in_output = true,
-            },
-
-            {
-                action_name = 'Generate JSON (TODO: set output filetype + custom output separator?)',
-                payload_generator = function(model, prompt, _)
-                    ---@type OlloumaGenerateRequestPayload
-                    return {
-                        model = model,
-                        prompt = table.concat(prompt, '\n'),
-                        system = 'Respond to the following message with a single JSON-formatted object.',
-                        format = 'json',
-                        options = {
-                            temperature = 0.0,
-                        }
-                    }
-                end,
-                -- require_selection = false,
-                -- show_prompt_in_output = false,
-            },
-        },
-
-        output_only = {
-            {
-                action_name = 'Review code (visual mode)',
-                payload_generator = function(model, model_action_opts)
-                    local filetype_sentence = ''
-
-                    if model_action_opts.filetype then
-                        filetype_sentence = string.format(
-                            ' (filetype=%s)',
-                            model_action_opts.filetype
-                        )
-                    end
-
-                    ---@type OlloumaGenerateRequestPayload
-                    return {
-                        model = model,
-                        prompt = model_action_opts.visual_selection,
-                        system = 'Please review the following code snippet and list any improvements to be made.'
-                            .. ' Only give relevant suggestions with performant implementations.'
-                            -- .. ' Keep in mind that this code it is part of a larger codebase.'
-                            .. ' Here is the code snippet' .. filetype_sentence .. ': ',
-                        options = {
-                            temperature = 0.8,
-                        },
-                    }
-                end,
-                require_selection = true,
-                show_prompt_in_output = false,
-            },
-        }
-    },
-}
+-- ---@type OlloumaPromptsConfig
+-- local default_prompts =
 
 
 ---@class OlloumaConfigModule
@@ -151,14 +94,10 @@ function M.default_config()
 
     ---@type OlloumaConfig
     return {
-        log_level = vim.log.levels.TRACE,
+        log_level = vim.log.levels.INFO,
 
+        -- query the server for the list of models and let the user choose which one
         model = nil,
-
-        -- chat = {
-        --     model = 'mistral',
-        --     system_prompt = '',
-        -- },
 
         api = {
             generate_url = default_base_url .. '/api/generate',
@@ -166,34 +105,93 @@ function M.default_config()
             models_url = default_base_url .. '/api/tags',
         },
 
-        prompts = default_prompts,
+        -- these prompts are only used in the default implementation of the config.model_actions()
+        prompts = {
+            chat = {
+                system_prompt = 'You are an AI assistant integrated in Neovim via the plugin ollouma.nvim.',
+            },
+
+            generate = {
+                interactive = {
+                    {
+                        action_name = 'Generate',
+                        payload_generator = function(model, prompt, _)
+                            ---@type OlloumaGenerateRequestPayload
+                            return {
+                                model = model,
+                                prompt = table.concat(prompt, '\n'),
+                            }
+                        end,
+                        -- require_selection = false,
+                        show_prompt_in_output = true,
+                    },
+
+                    {
+                        action_name = 'Generate JSON (TODO: set output filetype + custom output separator?)',
+                        payload_generator = function(model, prompt, _)
+                            ---@type OlloumaGenerateRequestPayload
+                            return {
+                                model = model,
+                                prompt = table.concat(prompt, '\n'),
+                                system = 'Respond to the following message with a single JSON-formatted object.',
+                                format = 'json',
+                                options = {
+                                    temperature = 0.0,
+                                }
+                            }
+                        end,
+                        -- require_selection = false,
+                        -- show_prompt_in_output = false,
+                    },
+                },
+
+                output_only = {
+                    {
+                        action_name = 'Review code (visual mode)',
+                        payload_generator = function(model, model_action_opts)
+                            local filetype_sentence = ''
+
+                            if model_action_opts.filetype then
+                                filetype_sentence = string.format(
+                                    ' (filetype=%s)',
+                                    model_action_opts.filetype
+                                )
+                            end
+
+                            ---@type OlloumaGenerateRequestPayload
+                            return {
+                                model = model,
+                                prompt = model_action_opts.visual_selection,
+                                system = 'Please review the following code snippet and list any improvements to be made.'
+                                    .. ' Only give relevant suggestions with performant implementations.'
+                                    -- .. ' Keep in mind that this code it is part of a larger codebase.'
+                                    .. ' Here is the code snippet' .. filetype_sentence .. ': ',
+                                options = {
+                                    temperature = 0.8,
+                                },
+                            }
+                        end,
+                        require_selection = true,
+                        show_prompt_in_output = false,
+                    },
+                }
+            },
+        },
 
         model_actions = function(model, model_action_opts)
             model_action_opts = model_action_opts or {}
             local prompts = require('ollouma').config.prompts
-            local model_actions = require('ollouma.config.model-action')
+            local model_actions_module = require('ollouma.config.model-action')
 
-            return {
-                ---@type OlloumaModelAction
-                {
-                    name = 'Chat',
-                    on_select = function()
-                        require('ollouma.chat.ui').start_chat_ui(
-                            {
-                                model = model,
-                                system_prompt = 'You are an AI assistant integrated in Neovim via the plugin ollouma.nvim developed by Louis Brunet.',
-                            }
-                        )
-                    end
-                },
-                unpack(model_actions.from_prompt_config(prompts, model, model_action_opts)),
-            }
+            ---@type OlloumaModelAction[]
+            local model_actions = model_actions_module.from_prompt_config(prompts, model, model_action_opts)
+
+            return model_actions
         end,
 
         user_command_subcommands = {
             ollouma = function(_, model_action_opts)
-                local ollouma = require('ollouma')
-                ollouma.start(model_action_opts)
+                require('ollouma').start(model_action_opts)
             end,
 
             select_action = function(_, model_action_opts)

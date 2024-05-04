@@ -1,3 +1,9 @@
+---@class OlloumaSplitUiBufferAutocommand
+---@field event string[]|string
+---@field callback string|fun(opts: { id: number, event: string, buf: integer, file: string }):nil
+---@field nested boolean|nil
+---@field once boolean|nil
+
 ---@class OlloumaSplitUiBufferCommand
 ---@field command_name string
 ---@field rhs string|fun():nil
@@ -45,9 +51,11 @@ end
 ---@class OlloumaSplitUiCreateItemOptions
 ---@field display_name string|nil
 ---@field filetype string|nil
+---@field buffer_autocommands OlloumaSplitUiBufferAutocommand[]|nil
 ---@field buffer_commands OlloumaSplitUiBufferCommand[]|nil
 ---@field buffer_keymaps OlloumaSplitUiBufferKeymap[]|nil
 ---@field split_size float|nil
+---@field buftype string|nil
 
 ---@param item_id string
 ---@param split_kind OlloumaSplitKind
@@ -71,10 +79,12 @@ function SplitUi:create_ui_item(item_id, split_kind, opts)
         opts.display_name or item_id,
         split_kind,
         {
+            buffer_autocommands = opts.buffer_autocommands,
             buffer_commands = opts.buffer_commands,
             buffer_keymaps = opts.buffer_keymaps,
             filetype = opts.filetype,
             split_size = opts.split_size,
+            buftype = opts.buftype,
         }
     )
     self.ui_items[item_id] = ui_item

@@ -102,15 +102,27 @@ end
 ---@param prompts_from_config OlloumaPromptsConfig
 ---@param model string
 ---@param model_action_opts OlloumaModelActionOptions
----@param filtered_actions OlloumaModelAction[]|nil insert into this table if not nil
+---@param existing_actions OlloumaModelAction[]|nil insert into this table if not nil
 ---@return OlloumaModelAction[]
-function M.from_prompt_config(prompts_from_config, model, model_action_opts, filtered_actions)
-    filtered_actions = filtered_actions or {}
+function M.from_prompt_config(prompts_from_config, model, model_action_opts, existing_actions)
+    existing_actions = existing_actions or {}
 
-    M.from_interactive_prompt_config(prompts_from_config.generate.interactive, model, model_action_opts, filtered_actions)
-    M.from_output_only_prompt_config(prompts_from_config.generate.output_only, model, model_action_opts, filtered_actions)
+    table.insert(existing_actions, {
+        name = 'Chat',
+        on_select = function()
+            require('ollouma.chat.ui').start_chat_ui(
+                {
+                    model = model,
+                    system_prompt = prompts_from_config.chat.system_prompt,
+                }
+            )
+        end
+    })
 
-    return filtered_actions
+    M.from_interactive_prompt_config(prompts_from_config.generate.interactive, model, model_action_opts, existing_actions)
+    M.from_output_only_prompt_config(prompts_from_config.generate.output_only, model, model_action_opts, existing_actions)
+
+    return existing_actions
 end
 
 return M

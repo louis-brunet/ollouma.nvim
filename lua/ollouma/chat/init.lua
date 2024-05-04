@@ -30,6 +30,12 @@ local M = {
     }
 }
 
+---@param display_role string
+---@return OlloumaChatRole
+function M.OlloumaChatRole.from_display_role(display_role)
+    return display_role
+end
+
 ---@param opts OlloumaChatSendOptions
 ---@return function api_stop_generation
 function M.send_chat(opts)
