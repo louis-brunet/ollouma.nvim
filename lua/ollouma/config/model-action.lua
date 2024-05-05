@@ -110,10 +110,18 @@ function M.from_prompt_config(prompts_from_config, model, model_action_opts, exi
     table.insert(existing_actions, {
         name = 'Chat',
         on_select = function()
+            local system_prompt = prompts_from_config.chat.system_prompt
+            local system_prompt_str = nil
+            if type(system_prompt) == 'function' then
+                system_prompt_str = system_prompt(model, model_action_opts)
+            else
+                system_prompt_str = system_prompt
+            end
+
             require('ollouma.chat.ui').start_chat_ui(
                 {
                     model = model,
-                    system_prompt = prompts_from_config.chat.system_prompt,
+                    system_prompt = system_prompt_str,
                 }
             )
         end

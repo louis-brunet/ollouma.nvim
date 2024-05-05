@@ -132,7 +132,7 @@ function M.start_output_only_ui(payload, title, opts)
         title = { title, { 'string' } },
     })
 
-    local session_store = require('ollouma.session')
+    local session_store = require('ollouma.session-store')
     local ui_utils = require('ollouma.util.ui')
     local output_only_ui_item_ids = { OUTPUT = 'output' }
     local split_ui = ui_utils.OlloumaSplitUi:new({
@@ -213,10 +213,12 @@ function M.generate_to_ui_item(output_item, payload, opts)
         end
     end
 
+    local api_url = config.api.generate_url
+
     ---@type OlloumaGenerateOptions
     local generate_opts = {
         payload = payload,
-        api_url = config.api.generate_url,
+        api_url = api_url,
         on_response_start = function()
             remove_loading_indicator()
         end,
@@ -226,6 +228,13 @@ function M.generate_to_ui_item(output_item, payload, opts)
         on_response_end = opts.on_response_end,
         on_api_error = function(api_error)
             remove_loading_indicator()
+
+            local OlloumaApiErrorReason = require('ollouma.util.api-client').OlloumaApiErrorReason
+            if api_error.reason == OlloumaApiErrorReason.CONNECTION_FAILED then
+                local log = require('ollouma.util.log')
+                log.error('Could not connect to ollama server @ ' .. api_url)
+            end
+
             output_item:write_lines({ '<!-- ERROR: ' .. api_error.reason .. ' -->' })
             if api_error.stderr then
                 output_item:write_lines({ '<!-- STDERR -->', '' })

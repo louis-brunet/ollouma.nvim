@@ -36,6 +36,12 @@ function M.OlloumaChatRole.from_display_role(display_role)
     return display_role
 end
 
+-- ---@param role OlloumaChatRole
+-- ---@return string
+-- function M.OlloumaChatRole.to_display_role(role)
+--     return role
+-- end
+
 ---@param opts OlloumaChatSendOptions
 ---@return function api_stop_generation
 function M.send_chat(opts)

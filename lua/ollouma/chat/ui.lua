@@ -29,6 +29,7 @@ function M.start_chat_ui(opts)
     local log = require('ollouma.util.log')
     local session_store = require('ollouma.session-store')
     local ui_utils = require('ollouma.util.ui')
+    local util = require('ollouma.util')
     local chat_ui_item_ids = {
         PROMPT = 'prompt',
         OUTPUT = 'output',
@@ -66,6 +67,7 @@ function M.start_chat_ui(opts)
         local prompt_item = split_ui:get_ui_item(chat_ui_item_ids.PROMPT)
 
         local prompt = prompt_item:get_lines()
+        local role_text = chat.OlloumaChatRole.USER .. ':\n'
         -- local generate_request_payload = payload_generator(prompt)
 
         local function remove_gen_stop_command()
@@ -77,27 +79,65 @@ function M.start_chat_ui(opts)
             end
         end
 
-        output_item:open({ set_current_window = false })
+        ---@type string|nil
+        local current_message = nil
+        -- ---@type {}|nil TODO: type
+        -- local current_message_header_extmark = nil
 
-        local role_text = chat.OlloumaChatRole.USER .. ':\n'
+        ---@class OlloumaExtmarkPosition
+        ---@field row integer
+        ---@field col integer
+
+        ---@type integer|nil
+        local content_extmark_id = nil
+        ---@type OlloumaExtmarkPosition|nil
+        local content_extmark_start = nil
+        ---@type OlloumaExtmarkPosition|nil
+        local content_extmark_end = nil
+
+        local function start_content_extmark()
+            content_extmark_start = util.buf_end_row_col(output_item.buffer)
+        end
+
+        local function end_content_extmark()
+            content_extmark_id = nil
+            content_extmark_start = nil
+            content_extmark_end = nil
+        end
+
+        local function update_content_extmark_to_buf_end()
+            if not content_extmark_start then
+                error('need to set content_extmark_start')
+            end
+            content_extmark_end = require('ollouma.util').buf_end_row_col(output_item.buffer)
+
+            content_extmark_id = output_item:set_extmark(
+                content_extmark_start.row,
+                content_extmark_start.col,
+                {
+                    id = content_extmark_id,
+                    hl_group = ui_utils.highlight_groups.chat_content,
+                    end_row = content_extmark_end.row,
+                    end_col = content_extmark_end.col,
+                    hl_eol = true,
+                    invalidate = true,
+                }
+            )
+
+            log.trace('[update_content_extmark_to_buf_end] set highlight extmark for message content')
+        end
+
+        output_item:open({ set_current_window = false })
         output_item:write(role_text, {
             hl_eol = true,
-            hl_group = ui_utils.highlight_groups.chat.role,
+            hl_group = ui_utils.highlight_groups.chat_role,
         })
-
-        -- local line_count = vim.api.nvim_buf_line_count(output_item.buffer)
-        -- local extmark_line = line_count - 1
-        -- local extmark_col = 0
-        -- output_item:set_extmark(extmark_line, extmark_col, {
-        --     end_col = string.len(role_text),
-        --     -- end_row = extmark_line,
-        --     hl_eol = true,
-        --     hl_group = ui_utils.highlight_groups.chat.role,
-        -- })
-
+        start_content_extmark()
         output_item:write_lines(prompt_item:get_lines(), { disable_first_newline = true })
         output_item:write('\n')
-        output_item:lock()
+        -- output_item:lock()
+        update_content_extmark_to_buf_end()
+        end_content_extmark()
 
         table.insert(
             messages,
@@ -106,9 +146,6 @@ function M.start_chat_ui(opts)
                 content = table.concat(prompt, '\n')
             }
         )
-
-        ---@type string|nil
-        local current_message = nil
 
         local stop_generation = chat.send_chat({
             api_url = opts.api_url,
@@ -130,21 +167,23 @@ function M.start_chat_ui(opts)
             end,
             on_message_start = function(message_chunk)
                 current_message = ''
-                output_item:unlock()
+                -- output_item:unlock()
                 output_item:write(
                     message_chunk.message.role .. ':\n',
                     {
                         hl_eol = true,
-                        hl_group = ui_utils.highlight_groups.chat.role,
+                        hl_group = ui_utils.highlight_groups.chat_role,
                     }
                 )
-                output_item:lock()
+                -- output_item:lock()
+                start_content_extmark()
             end,
             on_message_chunk = function(message_chunk)
                 current_message = current_message .. message_chunk.content
-                output_item:unlock()
+                -- output_item:unlock()
                 output_item:write(message_chunk.content)
-                output_item:lock()
+                -- output_item:lock()
+                update_content_extmark_to_buf_end()
             end,
             on_message_end = function()
                 table.insert(
@@ -155,12 +194,34 @@ function M.start_chat_ui(opts)
                     }
                 )
                 remove_gen_stop_command()
-                output_item:unlock()
+                -- output_item:unlock()
                 output_item:write_lines({
                     --     '<!-- message end -->',
                     ''
                 })
-                output_item:lock()
+                -- output_item:lock()
+
+                update_content_extmark_to_buf_end()
+                end_content_extmark()
+
+                -- if not content_extmark_start then
+                --     log.error('[on_message_end] content_extmark_start is nil')
+                -- else
+                --     content_extmark_end = require('ollouma.util').buf_end_row_col(output_item.buffer)
+                --     output_item:set_extmark(
+                --         content_extmark_start.row,
+                --         content_extmark_start.col,
+                --         {
+                --             id = content_extmark_id,
+                --             hl_group = ui_utils.highlight_groups.chat_content,
+                --             end_row = content_extmark_end.row,
+                --             end_col = content_extmark_end.col,
+                --             hl_eol = true,
+                --         }
+                --     )
+                --     log.trace('[on_message_end] set highlight extmark for message content')
+                -- end
+
                 require('ollouma.util.polyfill.options').buf_set_option(
                     'modified',
                     false,
@@ -172,9 +233,9 @@ function M.start_chat_ui(opts)
         local function stop()
             stop_generation()
             remove_gen_stop_command()
-            output_item:unlock()
+            -- output_item:unlock()
             output_item:write_lines({ '<!---- INTERRUPTED --->', '' })
-            output_item:lock()
+            -- output_item:lock()
         end
 
         if output_item.buffer then
@@ -187,6 +248,8 @@ function M.start_chat_ui(opts)
 
     local ollouma_send_buffer_command = {
         command_name = 'OlloumaSend',
+        -- FIXME: the message should not be sent before the current response is
+        --   completed. Need queue of messages to send
         rhs = send_chat_from_prompt,
         opts = {},
     }
@@ -225,14 +288,27 @@ function M.start_chat_ui(opts)
                             opts.buf,
                             namespace_id,
                             0, -1,
-                            {}
+                            { details = true }
                         )
+                        ---@type vim.api.keyset.get_extmark_item[]
+                        local filtered_extmarks = {}
+                        for _, extmark in ipairs(extmarks) do
+                            local extmark_details = extmark[4]
+                            local extmark_is_valid = not extmark_details.invalid
+                            local extmark_hl_group_is_role =
+                                extmark_details.hl_group == ui_utils.highlight_groups.chat_role
+
+                            if extmark_is_valid and extmark_hl_group_is_role then
+                                table.insert(filtered_extmarks, extmark)
+                            end
+                        end
+
                         ---@type OlloumaChatMessageDto[]
                         local parsed_messages = {
                         }
-                        for index = 1, #extmarks do
-                            local extmark = extmarks[index]
-                            local next_extmark = extmarks[index + 1]
+                        for index = 1, #filtered_extmarks do
+                            local extmark = filtered_extmarks[index]
+                            local next_extmark = filtered_extmarks[index + 1]
                             local extmark_row = extmark[2]
                             local message_start = extmark_row + 1
                             local message_end = -1
@@ -261,7 +337,6 @@ function M.start_chat_ui(opts)
                                 content = vim.fn.join(lines, '\n')
                             }
                             table.insert(parsed_messages, message)
-                            -- log.info(message_start, message_end, 'TODO: line = ', vim.inspect(lines))
                         end
 
 

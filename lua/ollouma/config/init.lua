@@ -46,10 +46,10 @@
 
 
 ---@class OlloumaPromptsConfigChat
----@field system_prompt string
+---@field system_prompt string|fun(model: string, model_action_opts: OlloumaModelActionOptions):string
 
 ---@class OlloumaPartialPromptsConfigChat
----@field system_prompt string|nil
+---@field system_prompt string|(fun(model: string, model_action_opts: OlloumaModelActionOptions):string)|nil
 
 
 ---@class OlloumaPromptsConfig
@@ -61,6 +61,17 @@
 ---@field chat OlloumaPartialPromptsConfigChat|nil
 
 
+---@alias OlloumaHighlightsConfig table<OlloumaHighlightGroup, vim.api.keyset.highlight>
+-- ---@alias OlloumaHighlightsConfig { [OlloumaHighlightGroup]: vim.api.keyset.highlight }
+
+-- ---@field  OlloumaPromptsConfigGenerate
+-- ---@field chat OlloumaPromptsConfigChat
+--
+-- ---@class OlloumaPartialPromptsConfig
+-- ---@field generate OlloumaPartialPromptsConfigGenerate|nil
+-- ---@field chat OlloumaPartialPromptsConfigChat|nil
+
+
 ---@class OlloumaConfig
 -- ---@field chat OlloumaChatConfig
 ---@field model string|nil
@@ -69,6 +80,7 @@
 ---@field model_actions fun(model: string, model_action_opts: OlloumaModelActionOptions|nil): OlloumaModelAction[]
 ---@field user_command_subcommands table<string, OlloumaSubcommand>
 ---@field log_level integer :h vim.log.levels
+---@field highlights OlloumaHighlightsConfig
 
 ---@class OlloumaPartialConfig
 ---@field model string|nil
@@ -78,6 +90,7 @@
 ---@field model_actions nil|fun(model: string, model_action_opts: OlloumaModelActionOptions|nil): OlloumaModelAction[]
 ---@field user_command_subcommands table<string, OlloumaSubcommand>|nil
 ---@field log_level integer|nil :h vim.log.levels
+---@field highlights OlloumaHighlightsConfig|nil
 
 
 -- ---@type OlloumaPromptsConfig
@@ -90,7 +103,17 @@
 local M = {}
 
 function M.default_config()
+    local highlight_groups = require('ollouma.util.ui').highlight_groups
     local default_base_url = '127.0.0.1:11434'
+
+    local title_highlight = vim.api.nvim_get_hl(
+        0,
+        { name = 'Title', link = false, }
+    )
+    local cursor_line_highlight = vim.api.nvim_get_hl(
+        0,
+        { name = 'CursorLine', link = false, }
+    )
 
     ---@type OlloumaConfig
     return {
@@ -108,7 +131,13 @@ function M.default_config()
         -- these prompts are only used in the default implementation of the config.model_actions()
         prompts = {
             chat = {
-                system_prompt = 'You are an AI assistant integrated in Neovim via the plugin ollouma.nvim.',
+                -- system_prompt = 'You are an AI assistant integrated in Neovim via the plugin ollouma.nvim.',
+                system_prompt = function(model, model_action_opts)
+                    local assistant_str = 'You are an AI assistant integrated in Neovim via the plugin ollouma.nvim. '
+                    local model_str = 'The user has configured you to use the model named ' .. model .. '. '
+                    -- local filetype_str = ''
+                    return assistant_str .. model_str
+                end,
             },
 
             generate = {
@@ -147,7 +176,7 @@ function M.default_config()
 
                 output_only = {
                     {
-                        action_name = 'Review code (visual mode)',
+                        action_name = 'Review code (visual selection)',
                         payload_generator = function(model, model_action_opts)
                             local filetype_sentence = ''
 
@@ -163,7 +192,7 @@ function M.default_config()
                                 model = model,
                                 prompt = model_action_opts.visual_selection,
                                 system = 'Please review the following code snippet and list any improvements to be made.'
-                                    .. ' Only give relevant suggestions with performant implementations.'
+                                    .. ' Only give relevant suggestions with good implementations.'
                                     -- .. ' Keep in mind that this code it is part of a larger codebase.'
                                     .. ' Here is the code snippet' .. filetype_sentence .. ': ',
                                 options = {
@@ -190,8 +219,8 @@ function M.default_config()
         end,
 
         user_command_subcommands = {
-            ollouma = function(_, model_action_opts)
-                require('ollouma').start(model_action_opts)
+            ollouma = function(cmd_opts, model_action_opts)
+                require('ollouma').config.user_command_subcommands.select_action(cmd_opts, model_action_opts)
             end,
 
             select_action = function(_, model_action_opts)
@@ -200,8 +229,16 @@ function M.default_config()
                 if ollouma.config.model then
                     ollouma.select_model_action(ollouma.config.model, model_action_opts)
                 else
-                    ollouma.start(model_action_opts)
+                    ollouma.select_model_then_model_action(model_action_opts)
                 end
+            end,
+
+            select_model = function(_, model_action_opts)
+                require('ollouma').select_model_then_model_action(model_action_opts)
+            end,
+
+            hide = function()
+                require('ollouma').hide_session()
             end,
 
             resume = function()
@@ -211,6 +248,21 @@ function M.default_config()
             exit = function()
                 require('ollouma').exit_session()
             end,
+        },
+
+        highlights = {
+            [highlight_groups.chat_content] = {
+                fg = "#888888",
+            },
+
+            [highlight_groups.chat_role] = {
+                link = title_highlight.link,
+                fg = title_highlight.fg,
+                bg = cursor_line_highlight.bg,
+                bold = title_highlight.bold,
+                cterm = title_highlight.cterm,
+                sp = title_highlight.sp,
+            }
         },
     }
 end

@@ -17,6 +17,17 @@ function M.is_function(value)
 end
 
 ---@param buffer integer
+---@return { row: integer, col: integer } end_indices 0-based, col is after the last character, :h api-indexing
+function M.buf_end_row_col(buffer)
+    local last_row_idx = vim.api.nvim_buf_line_count(buffer) - 1
+
+    return {
+        row = last_row_idx,
+        col = M.buf_last_line_end_index(buffer),
+    }
+end
+
+---@param buffer integer
 ---@return integer col
 function M.buf_last_line_end_index(buffer)
     local last_line = vim.api.nvim_buf_get_lines(buffer, -2, -1, false)[1]

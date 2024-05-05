@@ -75,77 +75,40 @@ function SplitUiItem:get_lines()
     return vim.api.nvim_buf_get_lines(self.buffer, 0, -1, false)
 end
 
+---@class OlloumaSplitUiItemWriteOptions
+---@field hl_group string|number|nil
+---@field hl_eol boolean|nil
+---@field keep_cursor_on_last_line boolean|nil move cursor to after written text if it was already on the last line. defaults to true
+
 ---@param new_text string
----@param opts { hl_group: string|number|nil, hl_eol: boolean|nil }|nil
+---@param opts OlloumaSplitUiItemWriteOptions|nil
 function SplitUiItem:write(new_text, opts)
-    if self.buffer == nil then
-        return
+    local function write_function()
+        require('ollouma.util').buf_append_string(self.buffer, new_text)
     end
-    opts = opts or {}
-    local util = require('ollouma.util')
-
-    local last_line_idx_before = vim.api.nvim_buf_line_count(self.buffer) - 1
-    local is_highlight_group = not not opts.hl_group
-    local extmark_line = last_line_idx_before
-    local extmark_col
-
-    if is_highlight_group then
-        extmark_col = util.buf_last_line_end_index(self.buffer)
-    end
-
-    local win_cursor_before = vim.api.nvim_win_get_cursor(self.window)
-    local was_on_last_line = win_cursor_before[1] - 1 == last_line_idx_before
-
-    util.buf_append_string(self.buffer, new_text)
-    local end_col_idx = util.buf_last_line_end_index(self.buffer)
-    local end_row_idx = vim.api.nvim_buf_line_count(self.buffer) - 1
-    if is_highlight_group then
-        self:set_extmark(extmark_line, extmark_col, {
-            end_col = end_col_idx,
-            end_row = end_row_idx,
-            hl_eol = opts.hl_eol,
-            hl_group = opts.hl_group,
-        })
-    end
-
-    if not self.window or not vim.api.nvim_win_is_valid(self.window) then
-        return
-    end
-
-    -- -- if cursor is on second to last line, then
-    -- -- move it to the last line
-    -- local win_cursor = vim.api.nvim_win_get_cursor(self.window)
-
-    -- if win_cursor[1] == last_line_idx - 1 then
-    if was_on_last_line then
-        -- local last_line_idx = vim.api.nvim_buf_line_count(self.buffer)
-        -- local last_line = vim.api.nvim_buf_get_lines(
-        --     self.buffer,
-        --            -2, -1, false
-        -- )[1]
-        -- local last_column_idx = math.max(0, #last_line - 1)
-
-        vim.api.nvim_win_set_cursor(
-            self.window,
-            { end_row_idx + 1, end_col_idx }
-        )
-    end
+    return self:_wrap_write_keep_cursor_on_last_line(write_function, opts)
 end
 
+
+---@class OlloumaSplitUiItemWriteLinesOptions: OlloumaSplitUiItemWriteOptions
+---@field disable_first_newline boolean|nil
+
 ---@param lines string[]
----@param opts { disable_first_newline: boolean|nil }|nil
+---@param opts OlloumaSplitUiItemWriteLinesOptions|nil
 function SplitUiItem:write_lines(lines, opts)
-    if self.buffer == nil then
-        return
-    end
-    opts = opts or {}
-    local util = require('ollouma.util')
-    if opts.disable_first_newline and lines[1] then
-        util.buf_append_string(self.buffer, lines[1])
-        table.remove(lines, 1)
+    local function write_function()
+        opts = opts or {}
+        local util = require('ollouma.util')
+
+        if opts.disable_first_newline and lines[1] then
+            util.buf_append_string(self.buffer, lines[1])
+            table.remove(lines, 1)
+        end
+
+        util.buf_append_lines(self.buffer, lines)
     end
 
-    util.buf_append_lines(self.buffer, lines)
+    return self:_wrap_write_keep_cursor_on_last_line(write_function, opts)
 end
 
 ---@param num_lines_to_delete integer
@@ -209,7 +172,7 @@ function SplitUiItem:open(opts)
                 autocommand_opts
             )
             log.debug('create buffer autocommand "' ..
-            vim.inspect(autocommand.event) .. '" with opts: ' .. vim.inspect(autocommand_opts))
+                vim.inspect(autocommand.event) .. '" with opts: ' .. vim.inspect(autocommand_opts))
         end
     end
 
@@ -286,9 +249,10 @@ end
 ---@class OlloumaSplitUiItemSetExtmarkOptions
 ---@field id integer|nil id of the extmark to edit
 ---@field hl_group string|number|nil
----@field end_row integer|nil ending line of the mark, 0-based inclusive.ending line of the mark, 0-based inclusive.
+---@field end_row integer|nil ending line of the mark, 0-based inclusive.
 ---@field end_col integer|nil ending col of the mark, 0-based inclusive.
 ---@field hl_eol boolean|nil
+---@field invalidate boolean|nil
 
 ---@param line integer Line where to place the mark, 0-based. :h api-indexing
 ---@param col integer Column where to place the mark, 0-based. :h api-indexing
@@ -306,6 +270,7 @@ function SplitUiItem:set_extmark(line, col, opts)
         hl_group = opts.hl_group,
         hl_eol = opts.hl_eol,
         id = opts.id,
+        invalidate = opts.invalidate,
     }
 
     return vim.api.nvim_buf_set_extmark(
@@ -317,44 +282,90 @@ function SplitUiItem:set_extmark(line, col, opts)
     )
 end
 
-function SplitUiItem:lock()
-    local log = require('ollouma.util.log')
-    if not self.buffer then
-        log.error('no buffer, cannot lock')
+-- function SplitUiItem:lock()
+--     local log = require('ollouma.util.log')
+--     if not self.buffer then
+--         log.error('no buffer, cannot lock')
+--         return
+--     end
+--     local set_option = require('ollouma.util.polyfill.options').buf_set_option
+--
+--     set_option(
+--         'modifiable',
+--         false,
+--         { buf = self.buffer }
+--     )
+--     set_option(
+--         'readonly',
+--         true,
+--         { buf = self.buffer }
+--     )
+-- end
+
+-- function SplitUiItem:unlock()
+--     local log = require('ollouma.util.log')
+--     if not self.buffer then
+--         log.error('no buffer, cannot unlock')
+--         return
+--     end
+--     local set_option = require('ollouma.util.polyfill.options').buf_set_option
+--
+--     set_option(
+--         'modifiable',
+--         true,
+--         { buf = self.buffer }
+--     )
+--     set_option(
+--         'readonly',
+--         false,
+--         { buf = self.buffer }
+--     )
+-- end
+---@private
+---@param write_function fun():nil
+---@param opts OlloumaSplitUiItemWriteOptions|nil
+function SplitUiItem:_wrap_write_keep_cursor_on_last_line(write_function, opts)
+    if self.buffer == nil then
         return
     end
-    local set_option = require('ollouma.util.polyfill.options').buf_set_option
+    opts = opts or {}
+    local util = require('ollouma.util')
 
-    -- set_option(
-    --     'modifiable',
-    --     false,
-    --     { buf = self.buffer }
-    -- )
-    -- set_option(
-    --     'readonly',
-    --     true,
-    --     { buf = self.buffer }
-    -- )
-end
+    local last_line_idx_before = vim.api.nvim_buf_line_count(self.buffer) - 1
+    local is_highlight_group = not not opts.hl_group
+    local is_window_valid = self.window and vim.api.nvim_win_is_valid(self.window)
+    local keep_cursor_on_last_line =
+        opts.keep_cursor_on_last_line ~= false and is_window_valid and
+        vim.api.nvim_win_get_cursor(self.window)[1] - 1 == last_line_idx_before
+    local extmark_line = last_line_idx_before
+    local extmark_col
 
-function SplitUiItem:unlock()
-    local log = require('ollouma.util.log')
-    if not self.buffer then
-        log.error('no buffer, cannot unlock')
-        return
+    if is_highlight_group then
+        extmark_col = util.buf_last_line_end_index(self.buffer)
     end
-    local set_option = require('ollouma.util.polyfill.options').buf_set_option
 
-    set_option(
-        'modifiable',
-        true,
-        { buf = self.buffer }
-    )
-    set_option(
-        'readonly',
-        false,
-        { buf = self.buffer }
-    )
+    write_function()
+
+    local end_pos = util.buf_end_row_col(self.buffer)
+    -- local end_col_idx = util.buf_last_line_end_index(self.buffer)
+    -- local end_row_idx = vim.api.nvim_buf_line_count(self.buffer) - 1
+
+    if is_highlight_group then
+        self:set_extmark(extmark_line, extmark_col, {
+            end_col = end_pos.col,
+            end_row = end_pos.row,
+            hl_eol = opts.hl_eol,
+            hl_group = opts.hl_group,
+        })
+    end
+
+    if keep_cursor_on_last_line then
+        vim.api.nvim_win_set_cursor(
+            self.window,
+            { end_pos.row + 1, end_pos.col }
+        )
+    end
 end
+
 
 return SplitUiItem
