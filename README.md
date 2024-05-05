@@ -1,5 +1,7 @@
 # ollouma.nvim (WIP)
 
+Ollama client integration for Neovim.
+
 ## Dependencies
 
 ### System
@@ -40,8 +42,17 @@ See `default_config()` in [lua/ollouma/config/init.lua](./lua/ollouma/config/ini
 }
 ```
 ### Recommended keymaps
+ 
+Here are some keymaps you might find useful for common actions.
+```lua
+-- TODO: this API should be more easily accessible in lua
+vim.keymap.set('n', "<leader>oo", ':Ollouma select_action<CR>', { desc = "[o]llouma select action" })
+vim.keymap.set('n', "<leader>o",  ':Ollouma select_action<CR>', { desc = "[o]llouma", mode = 'x' })
 
-<!-- TODO: recommended keymaps/settings -->
+vim.keymap.set('n', "<leader>oh", function() require('ollouma').hide_session() end, { desc = "[o]llouma: [h]ide session" })
+vim.keymap.set('n', "<leader>or", function() require('ollouma').resume_session() end,{ desc = "[o]llouma: [r]esume session" })
+vim.keymap.set('n', "<leader>oe", function() require('ollouma').exit_session() end, { desc = "[o]llouma: [e]xit session" })
+```
 
 ## Usage examples
 
@@ -51,6 +62,8 @@ See `default_config()` in [lua/ollouma/config/init.lua](./lua/ollouma/config/ini
 require('ollouma').setup({
     model = 'llama3',
     api = {
+        -- this is the default value, but can point to any ollama-compatible
+        -- server!
         chat_url = "127.0.0.1:11434/api/chat",
     },
 })
