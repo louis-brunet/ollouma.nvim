@@ -261,8 +261,6 @@ function M.start_chat_ui(opts)
 
     local ollouma_send_buffer_command = {
         command_name = 'OlloumaSend',
-        -- FIXME: the message should not be sent before the current response is
-        --   completed. Need queue of messages to send
         rhs = function()
             message_queue:enqueue(
                 function(resolve)
