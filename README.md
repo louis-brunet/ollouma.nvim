@@ -31,6 +31,8 @@
 ## Setup, configuration options
 
 ### Default configuration
+See `default_config()` in [lua/ollouma/config/init.lua](./lua/ollouma/config/init.lua).
+
 ```lua
 ---@type OlloumaConfig
 {
@@ -41,8 +43,9 @@
 
 <!-- TODO: recommended keymaps/settings -->
 
-## Usage example
+## Usage examples
 
+### Opening a chat interface
 ```lua
 -- Setup
 require('ollouma').setup({
@@ -61,7 +64,10 @@ require('ollouma.chat.ui').start_chat_ui({
 -- ... send prompt with :OlloumaSend
 -- ... edit the existing messages in the output buffer
 -- ... save the output buffer to change chat history!
+```
 
+### Session management
+```lua
 -- Hide one or all open chat/generate sessions (close windows)
 require('ollouma').hide_session()
 
@@ -72,4 +78,10 @@ require('ollouma').resume_session()
 require('ollouma').exit_session()
 ```
 
+### Select model action
+- `:Ollouma select_action`: choose which of the configured model actions to run. Works in visual mode. Detects when it is being run in visual mode to conditionally show some actions that require a visual selection (e.g. "Review code").
+- You can also call `require('ollouma').select_model_action(model, model_action_opts)` from Lua, but for now you have to compute its parameters manually.
+
+### Select model
+`:Ollouma select_model`: same as `:Ollouma select_action`, but first query the server for its list of available models. Select one of these, then select a model action to run.
 
