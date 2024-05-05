@@ -258,13 +258,13 @@ function M.default_config()
 
         highlights = {
             [highlight_groups.chat_content] = {
-                -- fg = "#888888",
             },
 
             [highlight_groups.chat_role] = {
                 link = title_highlight.link,
                 fg = title_highlight.fg,
-                bg = cursor_line_highlight.bg,
+                bg = title_highlight.bg,
+                -- bg = cursor_line_highlight.bg,
                 bold = title_highlight.bold,
                 cterm = title_highlight.cterm,
                 sp = title_highlight.sp,
@@ -274,7 +274,6 @@ function M.default_config()
                 bold = true,
                 italic = true,
                 fg = comment_highlight.fg,
-                -- fg = "#888888",
             },
         },
     }

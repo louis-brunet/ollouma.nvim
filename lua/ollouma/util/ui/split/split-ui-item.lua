@@ -300,7 +300,7 @@ function SplitUiItem:show_loading_indicator()
     local ui_utils = require('ollouma.util.ui')
     local highlight_group = ui_utils.highlight_groups.loading_indicator
 
-    self:write('LOADING...\n', { hl_group = highlight_group, })
+    self:write('Loading...\n', { hl_group = highlight_group, })
 end
 
 --- Assumes nothing was appended after loading indicator since it was shown

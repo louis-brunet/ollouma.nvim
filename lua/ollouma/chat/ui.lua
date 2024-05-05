@@ -62,7 +62,8 @@ function M.start_chat_ui(opts)
         })
     end
 
-    local function send_chat_from_prompt()
+    ---@param resolve fun():nil
+    local function send_chat_from_prompt(resolve)
         local output_item = split_ui:get_ui_item(chat_ui_item_ids.OUTPUT)
         local prompt_item = split_ui:get_ui_item(chat_ui_item_ids.PROMPT)
 
@@ -77,6 +78,10 @@ function M.start_chat_ui(opts)
             if prompt_item.buffer then
                 vim.api.nvim_buf_del_user_command(prompt_item.buffer, 'OlloumaGenStop')
             end
+        end
+        local function on_message_end_or_interrupt()
+            remove_gen_stop_command()
+            resolve()
         end
 
         ---@type string|nil
@@ -198,7 +203,6 @@ function M.start_chat_ui(opts)
                         content = current_message,
                     }
                 )
-                remove_gen_stop_command()
                 -- output_item:unlock()
                 output_item:write_lines({
                     --     '<!-- message end -->',
@@ -232,15 +236,17 @@ function M.start_chat_ui(opts)
                     false,
                     { buf = output_item.buffer }
                 )
+
+                on_message_end_or_interrupt()
             end,
         })
 
         local function stop()
             stop_generation()
-            remove_gen_stop_command()
             -- output_item:unlock()
             output_item:write_lines({ '<!---- INTERRUPTED --->', '' })
             -- output_item:lock()
+            on_message_end_or_interrupt()
         end
 
         if output_item.buffer then
@@ -251,11 +257,17 @@ function M.start_chat_ui(opts)
         end
     end
 
+    local message_queue = require('ollouma.util.queue').OlloumaAsyncQueue:new()
+
     local ollouma_send_buffer_command = {
         command_name = 'OlloumaSend',
         -- FIXME: the message should not be sent before the current response is
         --   completed. Need queue of messages to send
-        rhs = send_chat_from_prompt,
+        rhs = function ()
+            message_queue:enqueue(function(resolve)
+                send_chat_from_prompt(resolve)
+            end)
+        end ,
         opts = {},
     }
 
