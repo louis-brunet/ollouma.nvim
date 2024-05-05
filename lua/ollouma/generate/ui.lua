@@ -209,7 +209,7 @@ function M.generate_to_ui_item(output_item, payload, opts)
     end
     local function remove_loading_indicator()
         if opts.show_loading_indicator then
-            output_item:delete_lines(1)
+            output_item:delete_lines_from_end(1)
         end
     end
 

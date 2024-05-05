@@ -147,6 +147,8 @@ function M.start_chat_ui(opts)
             }
         )
 
+        output_item:show_loading_indicator()
+
         local stop_generation = chat.send_chat({
             api_url = opts.api_url,
             payload = {
@@ -158,6 +160,7 @@ function M.start_chat_ui(opts)
             },
             on_api_error = function(api_error)
                 local OlloumaApiErrorReason = require('ollouma.util.api-client').OlloumaApiErrorReason
+                output_item:hide_loading_indicator()
 
                 if api_error.reason == OlloumaApiErrorReason.CONNECTION_FAILED then
                     log.error('Could not connect to ollama server @ ' .. opts.api_url)
@@ -167,6 +170,8 @@ function M.start_chat_ui(opts)
             end,
             on_message_start = function(message_chunk)
                 current_message = ''
+                output_item:hide_loading_indicator()
+
                 -- output_item:unlock()
                 output_item:write(
                     message_chunk.message.role .. ':\n',

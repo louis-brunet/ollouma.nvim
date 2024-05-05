@@ -111,8 +111,22 @@ function SplitUiItem:write_lines(lines, opts)
     return self:_wrap_write_keep_cursor_on_last_line(write_function, opts)
 end
 
+---@param start integer inclusive, 0-based, negative is from end, :h api-indexing
+---@param end integer exclusive, 0-based, negative is from end, :h api-indexing
+function SplitUiItem:delete_line_range(range_start, range_end)
+    vim.validate({
+        range_start = { range_start, { 'number' } },
+        range_end = { range_end, { 'number' } },
+    })
+    if self.buffer == nil then
+        return
+    end
+
+    vim.api.nvim_buf_set_lines(self.buffer, range_start, range_end, false, {})
+end
+
 ---@param num_lines_to_delete integer
-function SplitUiItem:delete_lines(num_lines_to_delete)
+function SplitUiItem:delete_lines_from_end(num_lines_to_delete)
     vim.validate({
         count = { num_lines_to_delete, { 'number' } },
     })
@@ -282,6 +296,18 @@ function SplitUiItem:set_extmark(line, col, opts)
     )
 end
 
+function SplitUiItem:show_loading_indicator()
+    local ui_utils = require('ollouma.util.ui')
+    local highlight_group = ui_utils.highlight_groups.loading_indicator
+
+    self:write('LOADING...\n', { hl_group = highlight_group, })
+end
+
+--- Assumes nothing was appended after loading indicator since it was shown
+function SplitUiItem:hide_loading_indicator()
+    self:delete_line_range(-3,-2)
+end
+
 -- function SplitUiItem:lock()
 --     local log = require('ollouma.util.log')
 --     if not self.buffer then
@@ -321,6 +347,8 @@ end
 --         { buf = self.buffer }
 --     )
 -- end
+
+
 ---@private
 ---@param write_function fun():nil
 ---@param opts OlloumaSplitUiItemWriteOptions|nil
@@ -356,6 +384,7 @@ function SplitUiItem:_wrap_write_keep_cursor_on_last_line(write_function, opts)
             end_row = end_pos.row,
             hl_eol = opts.hl_eol,
             hl_group = opts.hl_group,
+            invalidate = true,
         })
     end
 

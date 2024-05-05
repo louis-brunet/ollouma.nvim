@@ -25,7 +25,7 @@
 
 ---@class OlloumaGenerateInteractivePrompt
 ---@field action_name string
----@field payload_generator fun(model: string, prompt: string[], model_action_opts: OlloumaModelActionOptions):OlloumaGenerateRequestPayload
+---@field payload_generator nil|fun(model: string, prompt: string[], model_action_opts: OlloumaModelActionOptions):OlloumaGenerateRequestPayload
 ---@field require_selection boolean|nil
 ---@field show_prompt_in_output boolean|nil
 
@@ -114,6 +114,10 @@ function M.default_config()
         0,
         { name = 'CursorLine', link = false, }
     )
+    local comment_highlight = vim.api.nvim_get_hl(
+        0,
+        { name = 'Comment', link = false, }
+    )
 
     ---@type OlloumaConfig
     return {
@@ -135,8 +139,10 @@ function M.default_config()
                 system_prompt = function(model, model_action_opts)
                     local assistant_str = 'You are an AI assistant integrated in Neovim via the plugin ollouma.nvim. '
                     local model_str = 'The user has configured you to use the model named ' .. model .. '. '
-                    -- local filetype_str = ''
-                    return assistant_str .. model_str
+                    -- local code_blocks_str = 'When you write code blocks with triple backticks, include a language annotation for better syntax highlighting. '
+                    -- local filetype_str = '... something about ' .. model_action_opts.filetype
+
+                    return assistant_str .. model_str -- .. code_blocks_str
                 end,
             },
 
@@ -162,7 +168,7 @@ function M.default_config()
                             return {
                                 model = model,
                                 prompt = table.concat(prompt, '\n'),
-                                system = 'Respond to the following message with a single JSON-formatted object.',
+                                system = 'Respond to the following message with a single JSON-formatted object. Do not write any text before or after the returned JSON object.',
                                 format = 'json',
                                 options = {
                                     temperature = 0.0,
@@ -191,7 +197,7 @@ function M.default_config()
                             return {
                                 model = model,
                                 prompt = model_action_opts.visual_selection,
-                                system = 'Please review the following code snippet and list any improvements to be made.'
+                                system = 'Review the following code snippet and list any improvements to be made.'
                                     .. ' Only give relevant suggestions with good implementations.'
                                     -- .. ' Keep in mind that this code it is part of a larger codebase.'
                                     .. ' Here is the code snippet' .. filetype_sentence .. ': ',
@@ -252,7 +258,7 @@ function M.default_config()
 
         highlights = {
             [highlight_groups.chat_content] = {
-                fg = "#888888",
+                -- fg = "#888888",
             },
 
             [highlight_groups.chat_role] = {
@@ -262,7 +268,14 @@ function M.default_config()
                 bold = title_highlight.bold,
                 cterm = title_highlight.cterm,
                 sp = title_highlight.sp,
-            }
+            },
+
+            [highlight_groups.loading_indicator] = {
+                bold = true,
+                italic = true,
+                fg = comment_highlight.fg,
+                -- fg = "#888888",
+            },
         },
     }
 end
