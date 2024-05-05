@@ -16,10 +16,15 @@ function M:new()
     return setmetatable(async_queue, self)
 end
 
+---@class OlloumaAsyncQueueEnqueueOptions
+---@field on_wait_start nil|fun():nil
+
 ---@param callback OlloumaAsyncQueueCallback
-function M:enqueue(callback)
+---@param opts OlloumaAsyncQueueEnqueueOptions|nil
+function M:enqueue(callback, opts)
     local OlloumaAsyncQueueCallback = require('ollouma.util.queue.async-queue-node')
     local new_node = OlloumaAsyncQueueCallback:new(callback)
+    opts = opts or {}
 
     if self.tail ~= nil then
         self.tail.next = new_node
@@ -35,6 +40,10 @@ function M:enqueue(callback)
         callback(function()
             self:_resolve_async_task()
         end)
+    else
+        if opts.on_wait_start then
+            opts.on_wait_start()
+        end
     end
 end
 
@@ -66,11 +75,9 @@ function M:_resolve_async_task()
         return
     end
 
-    self.head.callback(function ()
+    self.head.callback(function()
         self:_resolve_async_task()
     end)
 end
 
 return M
-
-

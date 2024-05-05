@@ -263,11 +263,18 @@ function M.start_chat_ui(opts)
         command_name = 'OlloumaSend',
         -- FIXME: the message should not be sent before the current response is
         --   completed. Need queue of messages to send
-        rhs = function ()
-            message_queue:enqueue(function(resolve)
-                send_chat_from_prompt(resolve)
-            end)
-        end ,
+        rhs = function()
+            message_queue:enqueue(
+                function(resolve)
+                    send_chat_from_prompt(resolve)
+                end,
+                {
+                    on_wait_start = function ()
+                        log.info('Added message to queue')
+                    end
+                }
+            )
+        end,
         opts = {},
     }
 
