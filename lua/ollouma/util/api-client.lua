@@ -27,15 +27,21 @@
 ---@class OlloumaChatResponseChunkDto: OlloumaResponseChunkDto
 ---@field message? OlloumaChatMessageDto
 
+local CURL_OPTS = {
+    '--silent',
+    '--show-error',
+    '--no-buffer',
+}
+
 ---@enum OlloumaApiErrorReason
 local OlloumaApiErrorReason = {
     -- cURL errors
-    UNSUPPORTED_PROTOCOL = 'unsupported_protocol',
-    URL_MALFORMED = 'url_malformed',
-    RESOLVE_PROXY = 'resolve_proxy',
-    RESOLVE_HOST = 'resolve_host',
-    CONNECTION_FAILED = 'connection_failed',
-    PARSE_HTTP = 'parse_http',
+    UNSUPPORTED_PROTOCOL = 'unsupported protocol',
+    URL_MALFORMED = 'url malformed',
+    RESOLVE_PROXY = 'resolve proxy',
+    RESOLVE_HOST = 'resolve host',
+    CONNECTION_FAILED = 'connection failed',
+    PARSE_HTTP = 'parse http',
 
     -- App errors
     -- PARSE_JSON = 'parse_json',
@@ -149,7 +155,8 @@ function M.stream_response(url, json_body, callbacks)
                 if api_error and callbacks.on_error then
                     vim.schedule(function() callbacks.on_error(api_error) end)
                 else
-                    local e = vim.fn.printf('command execution failed (%s): %s', (api_error or {}).reason or '', completed.stderr)
+                    local e = vim.fn.printf('command execution failed (%s): %s', (api_error or {}).reason or '',
+                        completed.stderr)
                     error(e)
                 end
             end
@@ -212,7 +219,13 @@ end
 function M.get_stream(url, on_stdout, on_exit)
     local ok, res = pcall(
         system,
-        { 'curl', '--no-buffer', '-X', 'GET', url },
+        {
+            'curl',
+            '-X',
+            'GET',
+            url,
+            unpack(CURL_OPTS),
+        },
         { text = true, stdout = on_stdout },
         on_exit
     )
@@ -234,18 +247,23 @@ function M.post_stream(url, json_body, on_stdout, on_exit)
     local json_encoded_body = vim.json.encode(json_body)
     log.trace('POST ' .. url .. '\n' .. json_encoded_body)
 
+    local cmd = {
+        'curl',
+        '-X',
+        'POST',
+        '--data-raw',
+        json_encoded_body,
+        url,
+        unpack(CURL_OPTS),
+    }
+
     local ok, res = pcall(
         system,
+        cmd,
         {
-            'curl',
-            '--no-buffer',
-            '-X',
-            'POST',
-            '--data-raw',
-            json_encoded_body,
-            url,
+            text = true,
+            stdout = on_stdout,
         },
-        { text = true, stdout = on_stdout },
         on_exit
     )
 

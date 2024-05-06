@@ -118,6 +118,10 @@ function M.default_config()
         0,
         { name = 'Comment', link = false, }
     )
+    local error_highlight = vim.api.nvim_get_hl(
+        0,
+        { name = 'Error', link = false, }
+    )
 
     ---@type OlloumaConfig
     return {
@@ -274,6 +278,20 @@ function M.default_config()
                 bold = true,
                 italic = true,
                 fg = comment_highlight.fg,
+            },
+
+            [highlight_groups.error_title] = {
+                bold = true,
+                fg = error_highlight.fg,
+            },
+            --
+            -- [highlight_groups.error_reason] = {
+            --     italic = true,
+            --     fg = error_highlight.fg,
+            -- },
+
+            [highlight_groups.error_details] = {
+                fg = error_highlight.fg,
             },
         },
     }

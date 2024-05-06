@@ -79,6 +79,12 @@ function M.start_chat_ui(opts)
             end
         end
         local function on_message_end_or_interrupt()
+            require('ollouma.util.polyfill.options').buf_set_option(
+                'modified',
+                false,
+                { buf = output_item.buffer }
+            )
+
             remove_gen_stop_command()
             resolve()
         end
@@ -171,6 +177,10 @@ function M.start_chat_ui(opts)
                 else
                     log.error('API error: ' .. vim.inspect(api_error))
                 end
+
+                output_item:show_error(api_error)
+
+                on_message_end_or_interrupt()
             end,
             on_message_start = function(message_chunk)
                 current_message = ''
@@ -229,12 +239,6 @@ function M.start_chat_ui(opts)
                 --     )
                 --     log.trace('[on_message_end] set highlight extmark for message content')
                 -- end
-
-                require('ollouma.util.polyfill.options').buf_set_option(
-                    'modified',
-                    false,
-                    { buf = output_item.buffer }
-                )
 
                 on_message_end_or_interrupt()
             end,

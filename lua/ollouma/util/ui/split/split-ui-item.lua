@@ -310,6 +310,20 @@ function SplitUiItem:hide_loading_indicator()
     self:delete_line_range(-3,-2)
 end
 
+---@param api_error OlloumaApiError
+function SplitUiItem:show_error(api_error)
+    local ui_utils = require('ollouma.util.ui')
+    local header_hl_group = ui_utils.highlight_groups.error_title
+    local stderr_hl_group = ui_utils.highlight_groups.error_details
+    -- local reason_hl_group = ui_utils.highlight_groups.error_reason
+
+    self:write('Error: ' .. api_error.reason .. '\n', { hl_group = header_hl_group, })
+    -- self:write(api_error.reason, { hl_group = reason_hl_group, })
+    -- self:write('\n')
+    self:write(api_error.stderr .. '\n', { hl_group = stderr_hl_group, })
+end
+
+
 -- function SplitUiItem:lock()
 --     local log = require('ollouma.util.log')
 --     if not self.buffer then
