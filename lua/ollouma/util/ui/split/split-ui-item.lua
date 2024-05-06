@@ -83,6 +83,7 @@ end
 ---@param new_text string
 ---@param opts OlloumaSplitUiItemWriteOptions|nil
 function SplitUiItem:write(new_text, opts)
+    -- FIXME: this function breaks extmarks on last line
     local function write_function()
         require('ollouma.util').buf_append_string(self.buffer, new_text)
     end
@@ -96,10 +97,11 @@ end
 ---@param lines string[]
 ---@param opts OlloumaSplitUiItemWriteLinesOptions|nil
 function SplitUiItem:write_lines(lines, opts)
-    local function write_function()
-        opts = opts or {}
-        local util = require('ollouma.util')
+    local util = require('ollouma.util')
+    opts = opts or {}
+    lines = { unpack(lines) }
 
+    local function write_function()
         if opts.disable_first_newline and lines[1] then
             util.buf_append_string(self.buffer, lines[1])
             table.remove(lines, 1)
@@ -111,8 +113,8 @@ function SplitUiItem:write_lines(lines, opts)
     return self:_wrap_write_keep_cursor_on_last_line(write_function, opts)
 end
 
----@param start integer inclusive, 0-based, negative is from end, :h api-indexing
----@param end integer exclusive, 0-based, negative is from end, :h api-indexing
+---@param range_start integer inclusive, 0-based, negative is from end, :h api-indexing
+---@param range_end integer exclusive, 0-based, negative is from end, :h api-indexing
 function SplitUiItem:delete_line_range(range_start, range_end)
     vim.validate({
         range_start = { range_start, { 'number' } },

@@ -75,8 +75,10 @@ function M:_resolve_async_task()
         return
     end
 
-    self.head.callback(function()
-        self:_resolve_async_task()
+    vim.schedule(function()
+        self.head.callback(function()
+            self:_resolve_async_task()
+        end)
     end)
 end
 

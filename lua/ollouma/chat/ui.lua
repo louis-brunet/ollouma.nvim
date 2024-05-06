@@ -62,14 +62,13 @@ function M.start_chat_ui(opts)
         })
     end
 
+    ---@param prompt string[]
     ---@param resolve fun():nil
-    local function send_chat_from_prompt(resolve)
+    local function send_chat_from_prompt(prompt, resolve)
         local output_item = split_ui:get_ui_item(chat_ui_item_ids.OUTPUT)
         local prompt_item = split_ui:get_ui_item(chat_ui_item_ids.PROMPT)
 
-        local prompt = prompt_item:get_lines()
         local role_text = chat.OlloumaChatRole.USER .. ':\n'
-        -- local generate_request_payload = payload_generator(prompt)
 
         local function remove_gen_stop_command()
             if output_item.buffer then
@@ -138,7 +137,7 @@ function M.start_chat_ui(opts)
             hl_group = ui_utils.highlight_groups.chat_role,
         })
         start_content_extmark()
-        output_item:write_lines(prompt_item:get_lines(), { disable_first_newline = true })
+        output_item:write_lines(prompt, { disable_first_newline = true })
         output_item:write('\n')
         -- output_item:lock()
         update_content_extmark_to_buf_end()
@@ -262,9 +261,12 @@ function M.start_chat_ui(opts)
     local ollouma_send_buffer_command = {
         command_name = 'OlloumaSend',
         rhs = function()
+            local prompt_item = split_ui:get_ui_item(chat_ui_item_ids.PROMPT)
+            local prompt = prompt_item:get_lines()
+
             message_queue:enqueue(
                 function(resolve)
-                    send_chat_from_prompt(resolve)
+                    send_chat_from_prompt(prompt, resolve)
                 end,
                 {
                     on_wait_start = function ()
@@ -281,7 +283,7 @@ function M.start_chat_ui(opts)
         ui_utils.OlloumaSplitKind.RIGHT,
         {
             display_name = 'PROMPT [' .. opts.title .. ']',
-            split_size = 0.4,
+            -- split_size = 0.4,
             buffer_commands = {
                 ollouma_send_buffer_command,
             },
@@ -304,6 +306,9 @@ function M.start_chat_ui(opts)
             buffer_autocommands = {
                 {
                     event = 'BufWriteCmd',
+                    -- FIXME: this function appends the loading/error/interrupted
+                    -- indicators to messages, which is not consistent with how
+                    -- the chat works when this function is never called.
                     callback = function(opts)
                         local namespace_id = ui_utils.namespace_id
                         local extmarks = vim.api.nvim_buf_get_extmarks(
@@ -362,13 +367,19 @@ function M.start_chat_ui(opts)
                         end
 
 
+                        -- FIXME: this removes any prepended system (or user or assistant) messages
                         messages = parsed_messages
                         require('ollouma.util.polyfill.options').buf_set_option(
                             'modified',
                             false,
                             { buf = opts.buf }
                         )
-                        log.info('updated chat history for ' .. #messages .. ' message(s)') --, vim.inspect(parsed_messages))
+                        local num_messages = #messages
+                        local plural = 's'
+                        if num_messages == 1 then
+                            plural = ''
+                        end
+                        log.info('updated chat history for ' .. #messages .. ' message' .. plural) --, vim.inspect(parsed_messages))
                     end
                 }
             },
