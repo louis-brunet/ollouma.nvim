@@ -166,7 +166,7 @@ function M.default_config()
                     },
 
                     {
-                        action_name = 'Generate JSON (TODO: set output filetype + custom output separator?)',
+                        action_name = 'Generate JSON', -- (TODO: set output filetype + custom output separator?)',
                         payload_generator = function(model, prompt, _)
                             ---@type OlloumaGenerateRequestPayload
                             return {
