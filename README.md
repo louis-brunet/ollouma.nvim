@@ -4,6 +4,10 @@ Ollama client integration for Neovim.
 
 ## Dependencies
 
+### Neovim
+
+Requires version 0.10.0+ of Neovim. 
+
 ### System
 
 - `curl`

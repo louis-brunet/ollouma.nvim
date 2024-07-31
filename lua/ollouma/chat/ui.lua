@@ -91,8 +91,6 @@ function M.start_chat_ui(opts)
 
         ---@type string|nil
         local current_message = nil
-        -- ---@type {}|nil TODO: type
-        -- local current_message_header_extmark = nil
 
         ---@class OlloumaExtmarkPosition
         ---@field row integer
@@ -247,7 +245,12 @@ function M.start_chat_ui(opts)
         local function stop()
             stop_generation()
             -- output_item:unlock()
-            output_item:write_lines({ '<!---- INTERRUPTED --->', '' })
+
+            -- TODO: use highlight group instead of "<!-- -->" comment
+            output_item:write_lines(
+                { '<!---- INTERRUPTED --->', '' },
+                { hl_group = ui_utils.highlight_groups.interrupted_indicator }
+            )
             -- output_item:lock()
             on_message_end_or_interrupt()
         end

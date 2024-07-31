@@ -10,6 +10,7 @@ return {
         error_title = 'OlloumaErrorTitle',
         error_details = 'OlloumaErrorDetails',
         -- error_reason = 'OlloumaErrorReason',
+        interrupted_indicator = 'OlloumaChatInterruptedIndicator',
     },
     namespace_id = vim.api.nvim_create_namespace('Ollouma'),
     OlloumaSplitUi = require('ollouma.util.ui.split'),

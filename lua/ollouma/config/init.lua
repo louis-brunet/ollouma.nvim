@@ -284,13 +284,17 @@ function M.default_config()
                 bold = true,
                 fg = error_highlight.fg,
             },
-            --
+
             -- [highlight_groups.error_reason] = {
             --     italic = true,
             --     fg = error_highlight.fg,
             -- },
 
             [highlight_groups.error_details] = {
+                fg = error_highlight.fg,
+            },
+
+            [highlight_groups.interrupted_indicator] = {
                 fg = error_highlight.fg,
             },
         },
